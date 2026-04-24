@@ -153,7 +153,7 @@ with st.sidebar:
         
         # Datos Básicos
         f_set = st.text_input("Nombre del Set (ej: Bronze)")
-        f_pieza = st.selectbox("Pieza", ["Helm", "Armor", "Pants", "Gloves", "Boots", "Weapon", "Shield", "Pendant", "Ring"])
+        f_pieza = st.selectbox("Pieza", ["Helm", "Armor", "Pants", "Gloves", "Boots",])
         f_kundun = st.number_input("Nivel de Kundun", min_value=1, max_value=5, value=1)
         
         # Atributos de la Pieza
