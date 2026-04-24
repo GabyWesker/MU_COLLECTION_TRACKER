@@ -105,3 +105,65 @@ if st.button("💾 Guardar Progreso Actual", use_container_width=True):
     conn.close()
     st.toast("¡Datos guardados!")
     st.rerun()
+# --- VISTA VISUAL DE COLECCIONES (CARDS) ---
+st.divider()
+st.subheader("🖼️ Galería de Trofeos - Sets")
+
+# Obtenemos los nombres únicos de los sets que tenés en la DB
+sets_nombres = df['nombre_set'].unique()
+
+# Creamos una cuadrícula de 2 columnas para aprovechar el espacio
+for s in sets_nombres:
+    with st.container(border=True):
+        col_img, col_info = st.columns([1, 2])
+        
+        with col_img:
+            # Buscamos la imagen en la carpeta assets que creaste
+            img_path = f"assets/{s}.png"
+            try:
+                st.image(img_path, use_container_width=True)
+            except:
+                # Si la imagen no coincide exactamente con el nombre o no existe
+                st.image("https://via.placeholder.com/200?text=Sin+Imagen", use_container_width=True)
+        
+        with col_info:
+            # Buscamos el bonus del set en la tabla de premios
+            bonus_row = df_premios[df_premios['nombre_set'] == s]
+            bonus_txt = f"🎁 Bonus: {bonus_row['bonus_desc'].values[0]}" if not bonus_row.empty else "🎁 Bonus: No definido"
+            
+            st.markdown(f"### {s}")
+            st.caption(bonus_txt)
+            
+            # Listamos las 5 piezas del set y su estado actual
+            piezas_del_set = df[df['nombre_set'] == s]
+            for _, p in piezas_del_set.iterrows():
+                icono = "✅" if p['obtenido'] else "❌"
+                # Agregamos el número de Kundun si ya lo tenés en la base
+                k_val = f" | K{int(p['kundun'])}" if 'kundun' in p and p['kundun'] else ""
+                st.write(f"{icono} **{p['pieza']}**{k_val}")
+
+# --- BARRA LATERAL: AGREGAR NUEVO SET ---
+with st.sidebar:
+    st.divider()
+    st.header("➕ Gestión")
+    with st.form("nuevo_set_form"):
+        st.write("Añadir nueva colección")
+        nombre_nuevo = st.text_input("Nombre del Set (ej: Dragon)")
+        k_nuevo = st.number_input("Nivel de Kundun", min_value=1, max_value=5, value=1)
+        
+        if st.form_submit_button("Crear Set Completo"):
+            if nombre_nuevo:
+                conn = get_connection()
+                cursor = conn.cursor()
+                piezas_estandar = ["Helm", "Armor", "Pants", "Gloves", "Boots"]
+                for p_nombre in piezas_estandar:
+                    cursor.execute("""
+                        INSERT INTO sets (nombre_set, pieza, kundun, obtenido) 
+                        VALUES (?, ?, ?, 0)
+                    """, (nombre_nuevo, p_nombre, k_nuevo))
+                conn.commit()
+                conn.close()
+                st.success(f"Set {nombre_nuevo} creado. ¡A buscarlo!")
+                st.rerun()
+            else:
+                st.error("Poné un nombre para el set.")
