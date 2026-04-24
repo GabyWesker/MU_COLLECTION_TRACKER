@@ -143,27 +143,55 @@ for s in sets_nombres:
                 st.write(f"{icono} **{p['pieza']}**{k_val}")
 
 # --- BARRA LATERAL: AGREGAR NUEVO SET ---
+# --- BARRA LATERAL: AGREGAR PIEZA DETALLADA ---
 with st.sidebar:
     st.divider()
-    st.header("➕ Gestión")
-    with st.form("nuevo_set_form"):
-        st.write("Añadir nueva colección")
-        nombre_nuevo = st.text_input("Nombre del Set (ej: Dragon)")
-        k_nuevo = st.number_input("Nivel de Kundun", min_value=1, max_value=5, value=1)
+    st.header("➕ Gestión de Inventario")
+    
+    with st.form("nuevo_item_form"):
+        st.write("Registrar nueva pieza")
         
-        if st.form_submit_button("Crear Set Completo"):
-            if nombre_nuevo:
+        # Datos Básicos
+        f_set = st.text_input("Nombre del Set (ej: Bronze)")
+        f_pieza = st.selectbox("Pieza", ["Helm", "Armor", "Pants", "Gloves", "Boots", "Weapon", "Shield", "Pendant", "Ring"])
+        f_kundun = st.number_input("Nivel de Kundun", min_value=1, max_value=5, value=1)
+        
+        # Atributos de la Pieza
+        col_a, col_b = st.columns(2)
+        with col_a:
+            f_enchant = st.number_input("Enchant (+0 a +15)", min_value=0, max_value=15, value=0)
+            f_luck = st.checkbox("Luck (L)")
+        with col_b:
+            f_life = st.number_input("Life (+4 a +28)", min_value=0, max_value=28, step=4, value=0)
+
+        # Opciones Excellent
+        st.write("--- Opciones Excellent ---")
+        c1, c2, c3 = st.columns(3)
+        f_sd = c1.checkbox("SD")
+        f_dd = c2.checkbox("DD")
+        f_dsr = c3.checkbox("DSR")
+        
+        c4, c5, c6 = st.columns(3)
+        f_ref = c4.checkbox("REF")
+        f_hp = c5.checkbox("HP")
+        f_zen = c6.checkbox("ZEN")
+        
+        if st.form_submit_button("Añadir al Inventario"):
+            if f_set and f_pieza:
                 conn = get_connection()
                 cursor = conn.cursor()
-                piezas_estandar = ["Helm", "Armor", "Pants", "Gloves", "Boots"]
-                for p_nombre in piezas_estandar:
-                    cursor.execute("""
-                        INSERT INTO sets (nombre_set, pieza, kundun, obtenido) 
-                        VALUES (?, ?, ?, 0)
-                    """, (nombre_nuevo, p_nombre, k_nuevo))
+                cursor.execute("""
+                    INSERT INTO sets (
+                        nombre_set, pieza, kundun, obtenido, luck, 
+                        nivel_bs, add_lif, opt_sd, opt_dd, 
+                        opt_dsr, opt_ref, opt_hp, opt_zen
+                    ) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (f_set, f_pieza, f_kundun, 1 if f_luck else 0, 
+                      f_enchant, f_life, 1 if f_sd else 0, 1 if f_dd else 0, 
+                      1 if f_dsr else 0, 1 if f_ref else 0, 1 if f_hp else 0, 1 if f_zen else 0))
                 conn.commit()
                 conn.close()
-                st.success(f"Set {nombre_nuevo} creado. ¡A buscarlo!")
+                st.success(f"¡{f_pieza} {f_set} guardado con éxito!")
                 st.rerun()
             else:
-                st.error("Poné un nombre para el set.")
+                st.error("Faltan datos obligatorios (Set y Pieza).")
