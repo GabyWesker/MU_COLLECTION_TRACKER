@@ -99,6 +99,22 @@ def save_data(edited_df, user_id):
         st.error(f"Error al guardar: {e}")
         return False
 
+def add_full(user_id, nombre_set, pieza, kundun, luck, obtiene, enchant, life, sd, dd, dsr, ref, hp, zen):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO sets (user_id, nombre_set, pieza, kundun, luck, nivel_bs, add_lif, opt_sd, opt_dd, opt_dsr, opt_ref, opt_hp, opt_zen)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (user_id, nombre_set, pieza, kundun, bool(luck), enchant, life, bool(sd), bool(dd), bool(dsr), bool(ref), bool(hp), bool(zen)))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"[DEBUG] ERROR: {e}")
+        return False
+
 def delete_item(item_id, user_id):
     try:
         conn = get_connection()
@@ -122,21 +138,18 @@ def export_data(user_id):
         st.error(f"Error al exportar: {e}")
         return None
 
-def add_item(user_id, f_set, f_pieza, f_kundun, f_enchant, f_luck, f_life, f_sd, f_dd, f_dsr, f_ref, f_hp, f_zen):
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO sets (user_id, nombre_set, pieza, kundun, obtenido, luck, nivel_bs, add_lif, opt_sd, opt_dd, opt_dsr, opt_ref, opt_hp, opt_zen)
-            VALUES (%s, %s, %s, %s, TRUE, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (user_id, f_set, f_pieza, f_kundun, 1 if f_luck else 0, f_enchant, f_life, 1 if f_sd else 0, 1 if f_dd else 0, 1 if f_dsr else 0, 1 if f_ref else 0, 1 if f_hp else 0, 1 if f_zen else 0))
-        conn.commit()
-        cursor.close()
-        conn.close()
-        return True
-    except Exception as e:
-        st.error(f"Error: {e}")
-        return False
+def verify_password(plain_pwd, hashed_pwd):
+    return bcrypt.checkpw(plain_pwd.encode(), hashed_pwd.encode())
+
+def get_pieza_market(pieza):
+    mapeo = {
+        "Helm": "Casco",
+        "Armor": "Armadura",
+        "Pants": "Pantalones",
+        "Gloves": "Guantes",
+        "Boots": "Botas"
+    }
+    return mapeo.get(pieza, pieza)
 
 def create_set_complete(user_id, nombre_set, kundun):
     try:
@@ -157,26 +170,16 @@ def create_set_complete(user_id, nombre_set, kundun):
         return False
 
 def find_image(set_name):
-    base_path = os.path.join(os.path.dirname(__file__), "assets")
-    if not os.path.exists(base_path):
-        return None
-    for img in os.listdir(base_path):
-        if img.lower().replace(' ', '').replace('.png', '') == set_name.lower().replace(' ', ''):
-            return os.path.join(base_path, img)
+    try:
+        base_path = os.path.join(os.path.dirname(__file__), "assets")
+        if not os.path.exists(base_path):
+            return None
+        for img in os.listdir(base_path):
+            if img.lower().replace(' ', '').replace('.png', '') == set_name.lower().replace(' ', ''):
+                return os.path.join(base_path, img)
+    except:
+        pass
     return None
-
-def verify_password(plain_pwd, hashed_pwd):
-    return bcrypt.checkpw(plain_pwd.encode(), hashed_pwd.encode())
-
-def get_pieza_market(pieza):
-    mapeo = {
-        "Helm": "Casco",
-        "Armor": "Armadura",
-        "Pants": "Pantalones",
-        "Gloves": "Guantes",
-        "Boots": "Botas"
-    }
-    return mapeo.get(pieza, pieza)
 
 def load_saved_user(username):
     try:
@@ -360,13 +363,13 @@ else:
 if ver_modo == "Tabla":
         column_config = {
             "id": st.column_config.NumberColumn("ID", disabled=True),
-            "obtenido": st.column_config.CheckboxColumn("✅"),
+            "obtenido": st.column_config.CheckboxColumn("OBTENIDO ✅"),
             "nombre_set": "Set",
             "pieza": "Parte",
             "kundun": st.column_config.NumberColumn("K", min_value=1, max_value=5),
             "luck": st.column_config.CheckboxColumn("L"),
             "nivel_bs": st.column_config.NumberColumn("Enchant", min_value=0, max_value=15),
-            "add_lif": st.column_config.NumberColumn("LIFE", min_value=0, max_value=28, step=4),
+            "add_lif": st.column_config.NumberColumn("LIFE", min_value=0, max_value=28),
             "opt_sd": st.column_config.CheckboxColumn("SD"),
             "opt_dd": st.column_config.CheckboxColumn("DD"),
             "opt_dsr": st.column_config.CheckboxColumn("DSR"),
@@ -494,38 +497,57 @@ with st.sidebar:
                 else:
                     st.error("Poné un nombre para el set.")
     
-    st.divider()
-    st.header("➕ Gestión de Inventario")
-    
-    with st.form("nuevo_item_form"):
-        st.write("Registrar nueva pieza")
+    with st.expander("➕ Añadir Items"):
+        c1, c2 = st.columns(2)
+        with c1:
+            nombre_set_nuevo = st.text_input("Set", key="add_set")
+        with c2:
+            pieza_nueva = st.selectbox("Pieza", ["Helm", "Armor", "Pants", "Gloves", "Boots"], key="add_pieza")
         
-        f_set = st.text_input("Nombre del Set", key="input_item_set")
-        f_pieza = st.selectbox("Pieza", ["Helm", "Armor", "Pants", "Gloves", "Boots"], key="input_item_pieza")
-        f_kundun = st.number_input("Nivel de Kundun", min_value=1, max_value=5, value=1, key="input_item_kundun")
+        c3, c4, c5 = st.columns(3)
+        with c3:
+            kundun_nivel = st.number_input("Kundun", min_value=1, max_value=5, value=1, key="add_k")
+        with c4:
+            enchant_val = st.number_input("Enchant", min_value=0, max_value=15, value=0, key="add_enchant")
+        with c5:
+            life_val = st.number_input("Life", min_value=0, max_value=28, value=0, key="add_life")
         
-        col_a, col_b = st.columns(2)
-        with col_a:
-            f_enchant = st.number_input("Enchant (+0 a +15)", min_value=0, max_value=15, value=0, key="input_enchant")
-            f_luck = st.checkbox("Luck (L)", key="input_luck")
-        with col_b:
-            f_life = st.number_input("Life (+4 a +28)", min_value=0, max_value=28, step=4, value=0, key="input_life")
-
-        st.write("--- Opciones Excellent ---")
-        c1, c2, c3 = st.columns(3)
-        f_sd = c1.checkbox("SD", key="opt_sd")
-        f_dd = c2.checkbox("DD", key="opt_dd")
-        f_dsr = c3.checkbox("DSR", key="opt_dsr")
+        luck_nuevo = st.checkbox("Luck", key="add_luck")
         
-        c4, c5, c6 = st.columns(3)
-        f_ref = c4.checkbox("REF", key="opt_ref")
-        f_hp = c5.checkbox("HP", key="opt_hp")
-        f_zen = c6.checkbox("ZEN", key="opt_zen")
+        st.write("Opciones:")
+        o1, o2, o3 = st.columns(3)
+        sd_val = o1.checkbox("SD", key="opt_sd")
+        dd_val = o2.checkbox("DD", key="opt_dd")
+        dsr_val = o3.checkbox("DSR", key="opt_dsr")
         
-        if st.form_submit_button("Añadir al Inventario"):
-            if f_set and f_pieza:
-                if add_item(user_id, f_set, f_pieza, f_kundun, f_enchant, f_luck, f_life, f_sd, f_dd, f_dsr, f_ref, f_hp, f_zen):
-                    st.success(f"¡{f_pieza} {f_set} guardado!")
+        o4, o5, o6 = st.columns(3)
+        hp_val = o4.checkbox("HP", key="opt_hp")
+        ref_val = o5.checkbox("REF", key="opt_ref")
+        zen_val = o6.checkbox("ZEN", key="opt_zen")
+        
+        if st.button("➕ Añadir", key="btn_add_item"):
+            if nombre_set_nuevo and pieza_nueva:
+                luck_v = 1 if luck_nuevo else 0
+                obt_v = 0
+                sd_v = 1 if sd_val else 0
+                dd_v = 1 if dd_val else 0
+                dsr_v = 1 if dsr_val else 0
+                ref_v = 1 if ref_val else 0
+                hp_v = 1 if hp_val else 0
+                zen_v = 1 if zen_val else 0
+                k_v = int(kundun_nivel)
+                e_v = int(enchant_val)
+                l_v = int(life_val)
+                
+                ok = add_full(user_id, nombre_set_nuevo, pieza_nueva, k_v, luck_v, obt_v, e_v, l_v, sd_v, dd_v, dsr_v, ref_v, hp_v, zen_v)
+                
+                if ok:
+                    st.success(f"¡{pieza_nueva} {nombre_set_nuevo} añadido!")
                     st.rerun()
+                else:
+                    st.error("Error al guardar")
             else:
-                st.error("Faltan datos obligatorios (Set y Pieza).")
+                st.error("Completa Set y Pieza")
+    
+    st.divider()
+    st.header("📤 Exportar Datos")
