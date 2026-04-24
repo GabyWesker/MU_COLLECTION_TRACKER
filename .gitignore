@@ -1,5 +1,5 @@
-saved_user.txt
-remember.txt
+save_*.txt
+remember_*.txt
 .streamlit/secrets.toml
 __pycache__/
 *.pyc

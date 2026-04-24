@@ -157,11 +157,12 @@ def create_set_complete(user_id, nombre_set, kundun):
         return False
 
 def find_image(set_name):
-    if not os.path.exists('assets'):
+    base_path = os.path.join(os.path.dirname(__file__), "assets")
+    if not os.path.exists(base_path):
         return None
-    for img in os.listdir('assets'):
+    for img in os.listdir(base_path):
         if img.lower().replace(' ', '').replace('.png', '') == set_name.lower().replace(' ', ''):
-            return os.path.join('assets', img)
+            return os.path.join(base_path, img)
     return None
 
 def verify_password(plain_pwd, hashed_pwd):
@@ -177,19 +178,21 @@ def get_pieza_market(pieza):
     }
     return mapeo.get(pieza, pieza)
 
-def load_saved_user():
+def load_saved_user(username):
     try:
-        if os.path.exists("saved_user.txt"):
-            with open("saved_user.txt", "r") as f:
+        filename = f"save_{username}.txt"
+        if os.path.exists(filename):
+            with open(filename, "r") as f:
                 return f.read().strip()
     except:
         pass
     return ""
 
-def load_remember_me():
+def load_remember_me(username):
     try:
-        if os.path.exists("remember.txt"):
-            with open("remember.txt", "r") as f:
+        filename = f"remember_{username}.txt"
+        if os.path.exists(filename):
+            with open(filename, "r") as f:
                 return f.read().strip() == "1"
     except:
         pass
@@ -197,19 +200,23 @@ def load_remember_me():
 
 def save_saved_user(username, remember):
     try:
-        with open("saved_user.txt", "w") as f:
+        filename = f"save_{username}.txt"
+        with open(filename, "w") as f:
             f.write(username)
-        with open("remember.txt", "w") as f:
+        remember_file = f"remember_{username}.txt"
+        with open(remember_file, "w") as f:
             f.write("1" if remember else "0")
     except:
         pass
 
-def clear_saved_user():
+def clear_saved_user(username):
     try:
-        if os.path.exists("saved_user.txt"):
-            os.remove("saved_user.txt")
-        if os.path.exists("remember.txt"):
-            os.remove("remember.txt")
+        filename = f"save_{username}.txt"
+        if os.path.exists(filename):
+            os.remove(filename)
+        remember_file = f"remember_{username}.txt"
+        if os.path.exists(remember_file):
+            os.remove(remember_file)
     except:
         pass
 
@@ -223,10 +230,10 @@ if not st.session_state.logged_in:
     
     with tab_login:
         st.header("🛡️ MU Collection Tracker")
-        saved_user = load_saved_user()
-        saved_remember = load_remember_me()
-        username = st.text_input("Usuario", value=saved_user, placeholder="Tu nombre de usuario", key="login_user")
+        username = st.text_input("Usuario", placeholder="Tu nombre de usuario", key="login_user")
         password = st.text_input("Contraseña", type="password", key="login_pass")
+        
+        saved_remember = load_remember_me(username) if username else False
         login_remember = st.checkbox("Recordarme", key="chk_remember", value=saved_remember)
         
         if st.button("Entrar", use_container_width=True, key="btn_login"):
@@ -243,7 +250,7 @@ if not st.session_state.logged_in:
                     if login_remember:
                         save_saved_user(username, True)
                     else:
-                        clear_saved_user()
+                        clear_saved_user(username)
                     
                     st.session_state.user_id = user_id
                     st.session_state.logged_in = True
@@ -304,10 +311,11 @@ else:
     obtenidos = df['obtenido'].sum()
     porcentaje = int((obtenidos / total_items) * 100) if total_items > 0 else 0
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Total Piezas", total_items)
-    m2.metric("Obtenidas ✅", obtenidos)
-    m3.metric("Completado", f"{porcentaje}%")
+    m1, m2 = st.columns([2, 1])
+    with m1:
+        st.metric("Progreso", f"{obtenidos}/{total_items}")
+    with m2:
+        st.metric("Completado", f"{porcentaje}%")
     st.progress(porcentaje / 100)
 
     sets_completos = []
@@ -349,7 +357,7 @@ else:
         k_val = int(filtro_k[1])
         df_display = df_display[df_display['kundun'] == k_val]
 
-    if ver_modo == "Tabla":
+if ver_modo == "Tabla":
         column_config = {
             "id": st.column_config.NumberColumn("ID", disabled=True),
             "obtenido": st.column_config.CheckboxColumn("✅"),
@@ -396,35 +404,57 @@ else:
                     if delete_item(item_id, user_id):
                         st.toast("Item eliminado")
                         st.rerun()
+    
+if ver_modo == "Galería":
+    st.divider()
+    st.subheader("🖼️ Galería de Sets")
 
-    elif ver_modo == "Galería":
-        st.divider()
-        st.subheader("🖼️ Galería de Sets")
-
-        sets_nombres = df_display['nombre_set'].unique()
-        for s in sets_nombres:
+    sets_nombres = list(df_display['nombre_set'].unique())
+    for i in range(0, len(sets_nombres), 2):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            s = sets_nombres[i]
             with st.container(border=True):
-                col_img, col_info = st.columns([1, 2])
-                
-                with col_img:
+                c_img, c_info = st.columns([1, 2])
+                with c_img:
                     img_path = find_image(s)
                     if img_path and os.path.exists(img_path):
-                        st.image(img_path, use_container_width=True)
+                        st.image(img_path, width=100)
                     else:
-                        st.image("https://via.placeholder.com/200?text=Sin+Imagen", use_container_width=True)
-                
-                with col_info:
+                        st.image("https://via.placeholder.com/100?text=?", width=100)
+                with c_info:
                     bonus_row = df_premios[df_premios['nombre_set'] == s]
-                    bonus_txt = f"🎁 Bonus: {bonus_row['bonus_desc'].values[0]}" if not bonus_row.empty else "🎁 Bonus: No definido"
-                    
-                    st.markdown(f"### {s}")
+                    bonus_txt = f"🎁 {bonus_row['bonus_desc'].values[0]}" if not bonus_row.empty else "🎁 Bonus: N/A"
+                    st.markdown(f"**{s}**")
                     st.caption(bonus_txt)
-                    
                     piezas_del_set = df_display[df_display['nombre_set'] == s]
                     for _, p in piezas_del_set.iterrows():
                         icono = "✅" if p['obtenido'] else "❌"
                         k_val = f" | K{int(p['kundun'])}" if p['kundun'] else ""
-                        st.write(f"{icono} **{p['pieza']}**{k_val}")
+                        st.write(f"{icono} {p['pieza']}{k_val}")
+        
+        if i + 1 < len(sets_nombres):
+            with col2:
+                s = sets_nombres[i + 1]
+                with st.container(border=True):
+                    c_img, c_info = st.columns([1, 2])
+                    with c_img:
+                        img_path = find_image(s)
+                        if img_path and os.path.exists(img_path):
+                            st.image(img_path, width=100)
+                        else:
+                            st.image("https://via.placeholder.com/100?text=?", width=100)
+                    with c_info:
+                        bonus_row = df_premios[df_premios['nombre_set'] == s]
+                        bonus_txt = f"🎁 {bonus_row['bonus_desc'].values[0]}" if not bonus_row.empty else "🎁 Bonus: N/A"
+                        st.markdown(f"**{s}**")
+                        st.caption(bonus_txt)
+                        piezas_del_set = df_display[df_display['nombre_set'] == s]
+                        for _, p in piezas_del_set.iterrows():
+                            icono = "✅" if p['obtenido'] else "❌"
+                            k_val = f" | K{int(p['kundun'])}" if p['kundun'] else ""
+                            st.write(f"{icono} {p['pieza']}{k_val}")
 
     st.divider()
 
