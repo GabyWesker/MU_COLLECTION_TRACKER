@@ -28,21 +28,45 @@ def get_users_for_auth():
         }
     return result
 
-def register_user(email, username, password):
+def register_user(email, username, password, personaje=""):
     try:
         conn = get_connection()
         cursor = conn.cursor()
         pwd_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
         cursor.execute('''
-            INSERT INTO usuarios (email, username, password_hash)
-            VALUES (%s, %s, %s)
-        ''', (email, username, pwd_hash))
+            INSERT INTO usuarios (email, username, password_hash, personaje)
+            VALUES (%s, %s, %s, %s)
+        ''', (email, username, pwd_hash, personaje))
         conn.commit()
         cursor.close()
         conn.close()
         return True
     except Exception as e:
         return str(e)
+
+def get_user_info(user_id):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT username, personaje FROM usuarios WHERE id = %s", (user_id,))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return result
+    except:
+        return None, None
+
+def update_personaje(user_id, personaje):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE usuarios SET personaje = %s WHERE id = %s", (personaje, user_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True
+    except:
+        return False
 
 def load_data(user_id):
     try:
@@ -143,6 +167,52 @@ def find_image(set_name):
 def verify_password(plain_pwd, hashed_pwd):
     return bcrypt.checkpw(plain_pwd.encode(), hashed_pwd.encode())
 
+def get_pieza_market(pieza):
+    mapeo = {
+        "Helm": "Casco",
+        "Armor": "Armadura",
+        "Pants": "Pantalones",
+        "Gloves": "Guantes",
+        "Boots": "Botas"
+    }
+    return mapeo.get(pieza, pieza)
+
+def load_saved_user():
+    try:
+        if os.path.exists("saved_user.txt"):
+            with open("saved_user.txt", "r") as f:
+                return f.read().strip()
+    except:
+        pass
+    return ""
+
+def load_remember_me():
+    try:
+        if os.path.exists("remember.txt"):
+            with open("remember.txt", "r") as f:
+                return f.read().strip() == "1"
+    except:
+        pass
+    return False
+
+def save_saved_user(username, remember):
+    try:
+        with open("saved_user.txt", "w") as f:
+            f.write(username)
+        with open("remember.txt", "w") as f:
+            f.write("1" if remember else "0")
+    except:
+        pass
+
+def clear_saved_user():
+    try:
+        if os.path.exists("saved_user.txt"):
+            os.remove("saved_user.txt")
+        if os.path.exists("remember.txt"):
+            os.remove("remember.txt")
+    except:
+        pass
+
 if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 if 'logged_in' not in st.session_state:
@@ -153,8 +223,11 @@ if not st.session_state.logged_in:
     
     with tab_login:
         st.header("🛡️ MU Collection Tracker")
-        username = st.text_input("Usuario", placeholder="Tu nombre de usuario", key="login_user")
+        saved_user = load_saved_user()
+        saved_remember = load_remember_me()
+        username = st.text_input("Usuario", value=saved_user, placeholder="Tu nombre de usuario", key="login_user")
         password = st.text_input("Contraseña", type="password", key="login_pass")
+        login_remember = st.checkbox("Recordarme", key="chk_remember", value=saved_remember)
         
         if st.button("Entrar", use_container_width=True, key="btn_login"):
             users = get_users_for_auth()
@@ -166,6 +239,11 @@ if not st.session_state.logged_in:
                     user_id = cursor.fetchone()[0]
                     cursor.close()
                     conn.close()
+                    
+                    if login_remember:
+                        save_saved_user(username, True)
+                    else:
+                        clear_saved_user()
                     
                     st.session_state.user_id = user_id
                     st.session_state.logged_in = True
@@ -180,6 +258,7 @@ if not st.session_state.logged_in:
         st.header("Crear Cuenta")
         reg_email = st.text_input("Email", placeholder="tu@email.com", key="reg_email")
         reg_username = st.text_input("Usuario", placeholder="Nombre de usuario", key="reg_user")
+        reg_personaje = st.text_input("Personaje", placeholder="Nombre de tu personaje MU", key="reg_personaje")
         reg_password = st.text_input("Contraseña", type="password", key="reg_pass")
         reg_confirm = st.text_input("Confirmar Contraseña", type="password", key="reg_confirm")
         
@@ -189,7 +268,7 @@ if not st.session_state.logged_in:
             elif not reg_email or not reg_username or not reg_password:
                 st.error("Completa todos los campos")
             else:
-                result = register_user(reg_email, reg_username, reg_password)
+                result = register_user(reg_email, reg_username, reg_password, reg_personaje)
                 if result is True:
                     st.success("¡Cuenta creada! Ya puedes iniciar sesión.")
                 else:
@@ -197,7 +276,19 @@ if not st.session_state.logged_in:
     st.stop()
 
 user_id = st.session_state.user_id
-st.title(f"🛡️ Mi Colección - {st.session_state.username}")
+
+banner_path = os.path.join(os.path.dirname(__file__), "assets", "Banner.png")
+if os.path.exists(banner_path):
+    st.image(banner_path, use_container_width=True)
+
+user_info = get_user_info(user_id)
+username_logged = user_info[0] if user_info else st.session_state.username
+personaje = user_info[1] if user_info else ""
+
+if personaje:
+    st.title(f"🛡️ Mi Colección - {personaje}")
+else:
+    st.title(f"🛡️ Mi Colección - {username_logged}")
 
 if st.button("Cerrar Sesión"):
     st.session_state.logged_in = False
@@ -235,13 +326,15 @@ else:
 
     st.divider()
 
-    f1, f2, f3 = st.columns([2, 1, 1])
+    f1, f2, f3, f4 = st.columns([2, 1, 1, 1])
     with f1:
-        busqueda = st.text_input("🔍 Buscar set o pieza...", "").lower()
+        busqueda = st.text_input("🔍 Buscar", "").lower()
     with f2:
         filtro = st.selectbox("Estado:", ["Todos", "Pendientes ❌", "Completados ✅"])
     with f3:
         ver_modo = st.selectbox("Ver:", ["Tabla", "Galería"])
+    with f4:
+        filtro_k = st.selectbox("K:", ["Todos", "K1", "K2", "K3", "K4", "K5"])
 
     df_display = df.copy()
     if busqueda:
@@ -251,6 +344,10 @@ else:
         df_display = df_display[df_display['obtenido'] == False]
     elif filtro == "Completados ✅":
         df_display = df_display[df_display['obtenido'] == True]
+    
+    if filtro_k != "Todos":
+        k_val = int(filtro_k[1])
+        df_display = df_display[df_display['kundun'] == k_val]
 
     if ver_modo == "Tabla":
         column_config = {
@@ -260,8 +357,8 @@ else:
             "pieza": "Parte",
             "kundun": st.column_config.NumberColumn("K", min_value=1, max_value=5),
             "luck": st.column_config.CheckboxColumn("L"),
-            "nivel_bs": st.column_config.NumberColumn("B/S", min_value=0, max_value=15),
-            "add_lif": st.column_config.NumberColumn("LIF", min_value=0, max_value=28, step=4),
+            "nivel_bs": st.column_config.NumberColumn("Enchant", min_value=0, max_value=15),
+            "add_lif": st.column_config.NumberColumn("LIFE", min_value=0, max_value=28, step=4),
             "opt_sd": st.column_config.CheckboxColumn("SD"),
             "opt_dd": st.column_config.CheckboxColumn("DD"),
             "opt_dsr": st.column_config.CheckboxColumn("DSR"),
@@ -280,20 +377,30 @@ else:
             key="editor"
         )
 
-        if st.button("💾 Guardar Progreso", use_container_width=True):
-            if save_data(edited_df, user_id):
-                st.success("✅ ¡Datos guardados con éxito!")
-                st.balloons()
-                st.rerun()
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💾 Guardar Progreso", use_container_width=True):
+                if save_data(edited_df, user_id):
+                    st.success("✅ ¡Datos guardados con éxito!")
+                    st.balloons()
+                    st.rerun()
+        with col2:
+            st.link_button("🛒 Ir al Market", "https://mudream.online/market", use_container_width=True)
 
         with st.expander("🗑️ Eliminar items"):
             if not df_display.empty:
-                item_to_delete = st.selectbox("Selecciona ID a eliminar", df_display['id'].tolist())
-                if st.button("Eliminar", type="primary"):
-                    if delete_item(item_to_delete, user_id):
+                opciones = [f"{row['id']} - {row['nombre_set']} {row['pieza']}" for _, row in df_display.iterrows()]
+                seleccion = st.selectbox("Selecciona item", opciones, key="eliminar_select")
+                item_id = int(seleccion.split(" - ")[0])
+                if st.button("Eliminar", type="primary", key="btn_eliminar"):
+                    if delete_item(item_id, user_id):
                         st.toast("Item eliminado")
                         st.rerun()
-    else:
+
+    elif ver_modo == "Galería":
+        st.divider()
+        st.subheader("🖼️ Galería de Sets")
+
         sets_nombres = df_display['nombre_set'].unique()
         for s in sets_nombres:
             with st.container(border=True):
@@ -320,34 +427,6 @@ else:
                         st.write(f"{icono} **{p['pieza']}**{k_val}")
 
     st.divider()
-    st.subheader("🖼️ Galería de Sets")
-
-    sets_nombres = df_display['nombre_set'].unique()
-    for s in sets_nombres:
-        with st.container(border=True):
-            col_img, col_info = st.columns([1, 2])
-            
-            with col_img:
-                img_path = find_image(s)
-                if img_path and os.path.exists(img_path):
-                    st.image(img_path, use_container_width=True)
-                else:
-                    st.image("https://via.placeholder.com/200?text=Sin+Imagen", use_container_width=True)
-            
-            with col_info:
-                bonus_row = df_premios[df_premios['nombre_set'] == s]
-                bonus_txt = f"🎁 Bonus: {bonus_row['bonus_desc'].values[0]}" if not bonus_row.empty else "🎁 Bonus: No definido"
-                
-                st.markdown(f"### {s}")
-                st.caption(bonus_txt)
-                
-                piezas_del_set = df_display[df_display['nombre_set'] == s]
-                for _, p in piezas_del_set.iterrows():
-                    icono = "✅" if p['obtenido'] else "❌"
-                    k_val = f" | K{int(p['kundun'])}" if p['kundun'] else ""
-                    st.write(f"{icono} **{p['pieza']}**{k_val}")
-
-    st.divider()
 
     with st.expander("📤 Exportar Datos"):
         if st.button("Descargar CSV"):
@@ -362,6 +441,14 @@ else:
 
 with st.sidebar:
     st.divider()
+    
+    with st.expander("👤 Mi Perfil"):
+        nuevo_personaje = st.text_input("Personaje MU", value=personaje, key="edit_personaje")
+        if st.button("Guardar Personaje", key="btn_guardar_personaje"):
+            if update_personaje(user_id, nuevo_personaje):
+                st.success("¡Guardado!")
+                st.rerun()
+        st.caption(f"Cuenta: {username_logged}")
     
     with st.expander("➕ Crear Set Completo"):
         with st.form("nuevo_set_form"):

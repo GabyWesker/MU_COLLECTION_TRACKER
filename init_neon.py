@@ -13,6 +13,7 @@ def init_neon_db():
             email TEXT UNIQUE NOT NULL,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
+            personaje TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT NOW()
         )
     ''')
