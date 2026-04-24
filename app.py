@@ -6,7 +6,7 @@ import os
 
 st.set_page_config(page_title="MU Collection Tracker", layout="wide", page_icon="🛡️")
 
-NEON_CONN = "postgresql://neondb_owner:npg_D3z2uqPSwdtj@ep-delicate-band-acgfpuaz.sa-east-1.aws.neon.tech/neondb?sslmode=require"
+NEON_CONN = st.secrets["NEON_CONN"]
 
 def get_connection():
     return psycopg2.connect(NEON_CONN)
@@ -282,7 +282,8 @@ else:
 
         if st.button("💾 Guardar Progreso", use_container_width=True):
             if save_data(edited_df, user_id):
-                st.toast("¡Datos guardados!")
+                st.success("✅ ¡Datos guardados con éxito!")
+                st.balloons()
                 st.rerun()
 
         with st.expander("🗑️ Eliminar items"):
