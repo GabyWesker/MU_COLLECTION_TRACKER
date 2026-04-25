@@ -227,6 +227,14 @@ if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
+if 'st.session_state.ver_modo' not in st.session_state:
+    st.session_state.st.session_state.ver_modo = "Tabla"
+if 'filtro' not in st.session_state:
+    st.session_state.filtro = "Todos"
+if 'filtro_k' not in st.session_state:
+    st.session_state.filtro_k = "Todos"
+if 'busqueda' not in st.session_state:
+    st.session_state.busqueda = ""
 
 if not st.session_state.logged_in:
     tab_login, tab_register = st.tabs(["🔐 Iniciar Sesión", "📝 Registrarse"])
@@ -339,13 +347,21 @@ else:
 
     f1, f2, f3, f4 = st.columns([2, 1, 1, 1])
     with f1:
-        busqueda = st.text_input("🔍 Buscar", "").lower()
+        busqueda = st.text_input("🔍 Buscar", st.session_state.busqueda, key="busqueda_input")
+        if busqueda.lower() != st.session_state.busqueda:
+            st.session_state.busqueda = busqueda.lower()
     with f2:
-        filtro = st.selectbox("Estado:", ["Todos", "Pendientes ❌", "Completados ✅"])
+        filtro_opts = ["Todos", "Pendientes ❌", "Completados ✅"]
+        filtro = st.selectbox("Estado:", filtro_opts, index=filtro_opts.index(st.session_state.filtro), key="filtro_select")
+        st.session_state.filtro = filtro
     with f3:
-        ver_modo = st.selectbox("Ver:", ["Tabla", "Galería"])
+        ver_modo_opts = ["Tabla", "Galería"]
+        ver_modo = st.selectbox("Ver:", ver_modo_opts, index=ver_modo_opts.index(st.session_state.ver_modo), key="ver_modo_select")
+        st.session_state.ver_modo = ver_modo
     with f4:
-        filtro_k = st.selectbox("K:", ["Todos", "K1", "K2", "K3", "K4", "K5"])
+        filtro_k_opts = ["Todos", "K1", "K2", "K3", "K4", "K5"]
+        filtro_k = st.selectbox("K:", filtro_k_opts, index=filtro_k_opts.index(st.session_state.filtro_k), key="filtro_k_select")
+        st.session_state.filtro_k = filtro_k
 
     df_display = df.copy()
     if busqueda:
@@ -360,7 +376,7 @@ else:
         k_val = int(filtro_k[1])
         df_display = df_display[df_display['kundun'] == k_val]
 
-if ver_modo == "Tabla":
+if st.session_state.ver_modo == "Tabla":
         column_config = {
             "id": st.column_config.NumberColumn("ID", disabled=True),
             "obtenido": st.column_config.CheckboxColumn("OBTENIDO ✅"),
@@ -408,7 +424,7 @@ if ver_modo == "Tabla":
                         st.toast("Item eliminado")
                         st.rerun()
     
-if ver_modo == "Galería":
+if st.session_state.ver_modo == "Galería":
     st.divider()
     st.subheader("🖼️ Galería de Sets")
 
