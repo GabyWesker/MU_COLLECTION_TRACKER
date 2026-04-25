@@ -444,18 +444,18 @@ if sets_completos:
             txt = desc[0] if len(desc) > 0 else "Bonus Activado"
             cols[i % 2].success(f"**{s}:** {txt}")
 
-    df_display = df.copy()
-    if busqueda:
-        mask = df_display.apply(lambda r: busqueda in str(r['nombre_set']).lower() or busqueda in str(r['pieza']).lower(), axis=1)
-        df_display = df_display[mask]
-    if filtro == "Pendientes ❌":
-        df_display = df_display[df_display['obtenido'] == False]
-    elif filtro == "Completados ✅":
-        df_display = df_display[df_display['obtenido'] == True]
-    
-    if filtro_k != "Todos":
-        k_val = int(filtro_k[1])
-        df_display = df_display[df_display['kundun'] == k_val]
+df_display = df.copy()
+if busqueda:
+    mask = df_display.apply(lambda r: busqueda in str(r['nombre_set']).lower() or busqueda in str(r['pieza']).lower(), axis=1)
+    df_display = df_display[mask]
+if filtro == "Pendientes ❌":
+    df_display = df_display[df_display['obtenido'] == False]
+elif filtro == "Completados ✅":
+    df_display = df_display[df_display['obtenido'] == True]
+
+if filtro_k != "Todos":
+    k_val = int(filtro_k[1])
+    df_display = df_display[df_display['kundun'] == k_val]
 
 if st.session_state.ver_modo == "Tabla":
         column_config = {
