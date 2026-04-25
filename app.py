@@ -227,8 +227,8 @@ if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
-if 'st.session_state.ver_modo' not in st.session_state:
-    st.session_state.st.session_state.ver_modo = "Tabla"
+if 'ver_modo' not in st.session_state:
+    st.session_state.ver_modo = "Tabla"
 if 'filtro' not in st.session_state:
     st.session_state.filtro = "Todos"
 if 'filtro_k' not in st.session_state:
