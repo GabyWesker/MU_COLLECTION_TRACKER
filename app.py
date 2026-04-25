@@ -315,6 +315,83 @@ if st.button("Cerrar Sesión"):
 
 df, df_premios = load_data(user_id)
 
+with st.sidebar:
+    st.divider()
+    
+    with st.expander("👤 Mi Perfil"):
+        nuevo_personaje = st.text_input("Personaje MU", value=personaje, key="edit_personaje")
+        if st.button("Guardar Personaje", key="btn_guardar_personaje"):
+            if update_personaje(user_id, nuevo_personaje):
+                st.success("¡Guardado!")
+                st.rerun()
+        st.caption(f"Cuenta: {username_logged}")
+    
+    with st.expander("➕ Crear Set Completo"):
+        with st.form("nuevo_set_form"):
+            st.write("Añadir 5 piezas de un set")
+            nombre_nuevo = st.text_input("Nombre del Set", key="input_set_nombre")
+            k_nuevo = st.number_input("Nivel de Kundun", min_value=1, max_value=5, value=1, key="input_kundun")
+            
+            if st.form_submit_button("Crear Set"):
+                if nombre_nuevo:
+                    if create_set_complete(user_id, nombre_nuevo, k_nuevo):
+                        st.success(f"Set {nombre_nuevo} creado!")
+                        st.rerun()
+                else:
+                    st.error("Poné un nombre para el set.")
+    
+    with st.expander("➕ Añadir Items"):
+        c1, c2 = st.columns(2)
+        with c1:
+            nombre_set_nuevo = st.text_input("Set", key="add_set")
+        with c2:
+            pieza_nueva = st.selectbox("Pieza", ["Helm", "Armor", "Pants", "Gloves", "Boots"], key="add_pieza")
+        
+        c3, c4, c5 = st.columns(3)
+        with c3:
+            kundun_nivel = st.number_input("Kundun", min_value=1, max_value=5, value=1, key="add_k")
+        with c4:
+            enchant_val = st.number_input("Enchant", min_value=0, max_value=15, value=0, key="add_enchant")
+        with c5:
+            life_val = st.number_input("Life", min_value=0, max_value=28, value=0, key="add_life")
+        
+        luck_nuevo = st.checkbox("Luck", key="add_luck")
+        
+        st.write("Opciones:")
+        o1, o2, o3 = st.columns(3)
+        sd_val = o1.checkbox("SD", key="opt_sd")
+        dd_val = o2.checkbox("DD", key="opt_dd")
+        dsr_val = o3.checkbox("DSR", key="opt_dsr")
+        
+        o4, o5, o6 = st.columns(3)
+        hp_val = o4.checkbox("HP", key="opt_hp")
+        ref_val = o5.checkbox("REF", key="opt_ref")
+        zen_val = o6.checkbox("ZEN", key="opt_zen")
+        
+        if st.button("➕ Añadir", key="btn_add_item"):
+            if nombre_set_nuevo and pieza_nueva:
+                luck_v = 1 if luck_nuevo else 0
+                obt_v = 0
+                sd_v = 1 if sd_val else 0
+                dd_v = 1 if dd_val else 0
+                dsr_v = 1 if dsr_val else 0
+                ref_v = 1 if ref_val else 0
+                hp_v = 1 if hp_val else 0
+                zen_v = 1 if zen_val else 0
+                k_v = int(kundun_nivel)
+                e_v = int(enchant_val)
+                l_v = int(life_val)
+                
+                ok = add_full(user_id, nombre_set_nuevo, pieza_nueva, k_v, luck_v, obt_v, e_v, l_v, sd_v, dd_v, dsr_v, ref_v, hp_v, zen_v)
+                
+                if ok:
+                    st.success(f"¡{pieza_nueva} {nombre_set_nuevo} añadido!")
+                    st.rerun()
+                else:
+                    st.error("Error al guardar")
+            else:
+                st.error("Completa Set y Pieza")
+
 st.divider()
 
 f1, f2, f3, f4 = st.columns([2, 1, 1, 1])
@@ -488,83 +565,3 @@ if st.session_state.ver_modo == "Galería":
                     file_name="mi_coleccion_mu.csv",
                     mime="text/csv"
                 )
-
-with st.sidebar:
-    st.divider()
-    
-    with st.expander("👤 Mi Perfil"):
-        nuevo_personaje = st.text_input("Personaje MU", value=personaje, key="edit_personaje")
-        if st.button("Guardar Personaje", key="btn_guardar_personaje"):
-            if update_personaje(user_id, nuevo_personaje):
-                st.success("¡Guardado!")
-                st.rerun()
-        st.caption(f"Cuenta: {username_logged}")
-    
-    with st.expander("➕ Crear Set Completo"):
-        with st.form("nuevo_set_form"):
-            st.write("Añadir 5 piezas de un set")
-            nombre_nuevo = st.text_input("Nombre del Set", key="input_set_nombre")
-            k_nuevo = st.number_input("Nivel de Kundun", min_value=1, max_value=5, value=1, key="input_kundun")
-            
-            if st.form_submit_button("Crear Set"):
-                if nombre_nuevo:
-                    if create_set_complete(user_id, nombre_nuevo, k_nuevo):
-                        st.success(f"Set {nombre_nuevo} creado!")
-                        st.rerun()
-                else:
-                    st.error("Poné un nombre para el set.")
-    
-    with st.expander("➕ Añadir Items"):
-        c1, c2 = st.columns(2)
-        with c1:
-            nombre_set_nuevo = st.text_input("Set", key="add_set")
-        with c2:
-            pieza_nueva = st.selectbox("Pieza", ["Helm", "Armor", "Pants", "Gloves", "Boots"], key="add_pieza")
-        
-        c3, c4, c5 = st.columns(3)
-        with c3:
-            kundun_nivel = st.number_input("Kundun", min_value=1, max_value=5, value=1, key="add_k")
-        with c4:
-            enchant_val = st.number_input("Enchant", min_value=0, max_value=15, value=0, key="add_enchant")
-        with c5:
-            life_val = st.number_input("Life", min_value=0, max_value=28, value=0, key="add_life")
-        
-        luck_nuevo = st.checkbox("Luck", key="add_luck")
-        
-        st.write("Opciones:")
-        o1, o2, o3 = st.columns(3)
-        sd_val = o1.checkbox("SD", key="opt_sd")
-        dd_val = o2.checkbox("DD", key="opt_dd")
-        dsr_val = o3.checkbox("DSR", key="opt_dsr")
-        
-        o4, o5, o6 = st.columns(3)
-        hp_val = o4.checkbox("HP", key="opt_hp")
-        ref_val = o5.checkbox("REF", key="opt_ref")
-        zen_val = o6.checkbox("ZEN", key="opt_zen")
-        
-        if st.button("➕ Añadir", key="btn_add_item"):
-            if nombre_set_nuevo and pieza_nueva:
-                luck_v = 1 if luck_nuevo else 0
-                obt_v = 0
-                sd_v = 1 if sd_val else 0
-                dd_v = 1 if dd_val else 0
-                dsr_v = 1 if dsr_val else 0
-                ref_v = 1 if ref_val else 0
-                hp_v = 1 if hp_val else 0
-                zen_v = 1 if zen_val else 0
-                k_v = int(kundun_nivel)
-                e_v = int(enchant_val)
-                l_v = int(life_val)
-                
-                ok = add_full(user_id, nombre_set_nuevo, pieza_nueva, k_v, luck_v, obt_v, e_v, l_v, sd_v, dd_v, dsr_v, ref_v, hp_v, zen_v)
-                
-                if ok:
-                    st.success(f"¡{pieza_nueva} {nombre_set_nuevo} añadido!")
-                    st.rerun()
-                else:
-                    st.error("Error al guardar")
-            else:
-                st.error("Completa Set y Pieza")
-    
-    st.divider()
-    st.header("📤 Exportar Datos")
