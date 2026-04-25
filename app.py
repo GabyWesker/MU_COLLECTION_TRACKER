@@ -174,10 +174,13 @@ def find_image(set_name):
         base_path = os.path.join(os.path.dirname(__file__), "assets")
         if not os.path.exists(base_path):
             return None
+        if not set_name:
+            return None
+        set_name_clean = set_name.lower().replace(' ', '').replace('.png', '')
         for img in os.listdir(base_path):
-            if img.lower().replace(' ', '').replace('.png', '') == set_name.lower().replace(' ', ''):
+            if img.lower().replace(' ', '').replace('.png', '') == set_name_clean:
                 return os.path.join(base_path, img)
-    except:
+    except Exception:
         pass
     return None
 
@@ -435,11 +438,11 @@ for s in df['nombre_set'].unique():
 
 if sets_completos:
     with st.expander("🎁 BONUS ACTIVOS", expanded=True):
-            cols = st.columns(2)
-            for i, s in enumerate(sets_completos):
-                desc = df_premios[df_premios['nombre_set'] == s]['bonus_desc'].values
-                txt = desc[0] if len(desc) > 0 else "Bonus Activado"
-                cols[i % 2].success(f"**{s}:** {txt}")
+        cols = st.columns(2)
+        for i, s in enumerate(sets_completos):
+            desc = df_premios[df_premios['nombre_set'] == s]['bonus_desc'].values
+            txt = desc[0] if len(desc) > 0 else "Bonus Activado"
+            cols[i % 2].success(f"**{s}:** {txt}")
 
     df_display = df.copy()
     if busqueda:
