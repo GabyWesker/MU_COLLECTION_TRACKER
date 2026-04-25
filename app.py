@@ -315,53 +315,54 @@ if st.button("Cerrar Sesión"):
 
 df, df_premios = load_data(user_id)
 
+st.divider()
+
+f1, f2, f3, f4 = st.columns([2, 1, 1, 1])
+with f1:
+    busqueda = st.text_input("🔍 Buscar", st.session_state.busqueda, key="busqueda_input")
+    if busqueda.lower() != st.session_state.busqueda:
+        st.session_state.busqueda = busqueda.lower()
+with f2:
+    filtro_opts = ["Todos", "Pendientes ❌", "Completados ✅"]
+    filtro = st.selectbox("Estado:", filtro_opts, index=filtro_opts.index(st.session_state.filtro), key="filtro_select")
+    st.session_state.filtro = filtro
+with f3:
+    ver_modo_opts = ["Tabla", "Galería"]
+    ver_modo = st.selectbox("Ver:", ver_modo_opts, index=ver_modo_opts.index(st.session_state.ver_modo), key="ver_modo_select")
+    st.session_state.ver_modo = ver_modo
+with f4:
+    filtro_k_opts = ["Todos", "K1", "K2", "K3", "K4", "K5"]
+    filtro_k = st.selectbox("K:", filtro_k_opts, index=filtro_k_opts.index(st.session_state.filtro_k), key="filtro_k_select")
+    st.session_state.filtro_k = filtro_k
+
 if df.empty:
     st.warning("Tu colección está vacía. ¡Añade tu primera pieza!")
-else:
-    total_items = len(df)
-    obtenidos = df['obtenido'].sum()
-    porcentaje = int((obtenidos / total_items) * 100) if total_items > 0 else 0
+    st.stop()
 
-    m1, m2 = st.columns([2, 1])
-    with m1:
-        st.metric("Progreso", f"{obtenidos}/{total_items}")
-    with m2:
-        st.metric("Completado", f"{porcentaje}%")
-    st.progress(porcentaje / 100)
+total_items = len(df)
+obtenidos = df['obtenido'].sum()
+porcentaje = int((obtenidos / total_items) * 100) if total_items > 0 else 0
 
-    sets_completos = []
-    for s in df['nombre_set'].unique():
-        temp_df = df[df['nombre_set'] == s]
-        if len(temp_df) > 0 and temp_df['obtenido'].all():
-            sets_completos.append(s)
+m1, m2 = st.columns([2, 1])
+with m1:
+    st.metric("Progreso", f"{obtenidos}/{total_items}")
+with m2:
+    st.metric("Completado", f"{porcentaje}%")
+st.progress(porcentaje / 100)
 
-    if sets_completos:
-        with st.expander("🎁 BONUS ACTIVOS", expanded=True):
+sets_completos = []
+for s in df['nombre_set'].unique():
+    temp_df = df[df['nombre_set'] == s]
+    if len(temp_df) > 0 and temp_df['obtenido'].all():
+        sets_completos.append(s)
+
+if sets_completos:
+    with st.expander("🎁 BONUS ACTIVOS", expanded=True):
             cols = st.columns(2)
             for i, s in enumerate(sets_completos):
                 desc = df_premios[df_premios['nombre_set'] == s]['bonus_desc'].values
                 txt = desc[0] if len(desc) > 0 else "Bonus Activado"
                 cols[i % 2].success(f"**{s}:** {txt}")
-
-    st.divider()
-
-    f1, f2, f3, f4 = st.columns([2, 1, 1, 1])
-    with f1:
-        busqueda = st.text_input("🔍 Buscar", st.session_state.busqueda, key="busqueda_input")
-        if busqueda.lower() != st.session_state.busqueda:
-            st.session_state.busqueda = busqueda.lower()
-    with f2:
-        filtro_opts = ["Todos", "Pendientes ❌", "Completados ✅"]
-        filtro = st.selectbox("Estado:", filtro_opts, index=filtro_opts.index(st.session_state.filtro), key="filtro_select")
-        st.session_state.filtro = filtro
-    with f3:
-        ver_modo_opts = ["Tabla", "Galería"]
-        ver_modo = st.selectbox("Ver:", ver_modo_opts, index=ver_modo_opts.index(st.session_state.ver_modo), key="ver_modo_select")
-        st.session_state.ver_modo = ver_modo
-    with f4:
-        filtro_k_opts = ["Todos", "K1", "K2", "K3", "K4", "K5"]
-        filtro_k = st.selectbox("K:", filtro_k_opts, index=filtro_k_opts.index(st.session_state.filtro_k), key="filtro_k_select")
-        st.session_state.filtro_k = filtro_k
 
     df_display = df.copy()
     if busqueda:
