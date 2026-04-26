@@ -399,6 +399,20 @@ if st.button("Cerrar Sesión"):
     st.session_state.user_id = None
     st.rerun()
 
+c_tabla, c_galeria = st.columns(2)
+with c_tabla:
+    btn_style = "primary" if st.session_state.ver_modo == "Tabla" else "secondary"
+    if st.button("📋 Tabla", use_container_width=True, type=btn_style):
+        st.session_state.ver_modo = "Tabla"
+        st.rerun()
+with c_galeria:
+    btn_style = "primary" if st.session_state.ver_modo == "Galería" else "secondary"
+    if st.button("🖼️ Galería", use_container_width=True, type=btn_style):
+        st.session_state.ver_modo = "Galería"
+        st.rerun()
+
+st.divider()
+
 df, df_premios = load_data(user_id)
 
 with st.sidebar:
@@ -411,6 +425,11 @@ with st.sidebar:
                 st.success("¡Guardado!")
                 st.rerun()
         st.caption(f"Cuenta: {username_logged}")
+    
+    with st.expander("📊 Ordenar"):
+        orden_opts = ["Por Set", "Por Estado", "Por K"]
+        orden = st.selectbox("Ordenar:", orden_opts, index=orden_opts.index(st.session_state.orden), key="orden_select")
+        st.session_state.orden = orden
     
     with st.expander("➕ Crear Set Completo"):
         with st.form("nuevo_set_form"):
@@ -478,38 +497,38 @@ with st.sidebar:
             else:
                 st.error("Completa Set y Pieza")
 
-st.divider()
+total_items = len(df) if not df.empty else 0
+obtenidos = df['obtenido'].sum() if not df.empty else 0
+porcentaje = int((obtenidos / total_items) * 100) if total_items > 0 else 0
 
-filtro_set_opts = ["Todos"] + sorted(df['nombre_set'].unique().tolist()) if not df.empty else ["Todos"]
-
-f1, f2, f3, f4, f5, f6 = st.columns([2, 1, 1, 1, 1, 1])
-with f1:
+f_bus, f_est, f_k, f_set = st.columns([3, 1, 1, 1])
+with f_bus:
     busqueda = st.text_input("🔍 Buscar", st.session_state.busqueda, key="busqueda_input")
     if busqueda.lower() != st.session_state.busqueda:
         st.session_state.busqueda = busqueda.lower()
-with f2:
+with f_est:
     filtro_opts = ["Todos", "Pendientes ❌", "Completados ✅"]
     filtro = st.selectbox("Estado:", filtro_opts, index=filtro_opts.index(st.session_state.filtro), key="filtro_select")
     st.session_state.filtro = filtro
-with f3:
-    ver_modo_opts = ["Tabla", "Galería"]
-    ver_modo = st.selectbox("Ver:", ver_modo_opts, index=ver_modo_opts.index(st.session_state.ver_modo), key="ver_modo_select")
-    st.session_state.ver_modo = ver_modo
-with f4:
+with f_k:
     filtro_k_opts = ["Todos", "K1", "K2", "K3", "K4", "K5"]
     filtro_k = st.selectbox("K:", filtro_k_opts, index=filtro_k_opts.index(st.session_state.filtro_k), key="filtro_k_select")
     st.session_state.filtro_k = filtro_k
-with f5:
+with f_set:
+    filtro_set_opts = ["Todos"] + sorted(df['nombre_set'].unique().tolist()) if not df.empty else ["Todos"]
     try:
         filtro_set_idx = filtro_set_opts.index(st.session_state.filtro_set)
     except:
         filtro_set_idx = 0
     filtro_set = st.selectbox("Set:", filtro_set_opts, index=filtro_set_idx, key="filtro_set_select")
     st.session_state.filtro_set = filtro_set
-with f6:
-    orden_opts = ["Por Set", "Por Estado", "Por K"]
-    orden = st.selectbox("Ordenar:", orden_opts, index=orden_opts.index(st.session_state.orden), key="orden_select")
-    st.session_state.orden = orden
+
+c1, c2 = st.columns([1, 1])
+with c1:
+    st.metric("Progreso", f"{obtenidos}/{total_items}")
+with c2:
+    st.metric("Completado", f"{porcentaje}%")
+st.progress(porcentaje / 100)
 
 if df.empty:
     st.warning("Tu colección está vacía. ¡Añade tu primera pieza!")
@@ -556,17 +575,6 @@ def show_market_results(set_name, pieza, luck, opt_dd, opt_dsr, opt_ref, opt_hp,
                             st.markdown("🎯 Match: " + " | ".join([str(x) for x in r['match_reasons']]))
 
 if st.session_state.ver_modo == "Tabla":
-    total_items = len(df)
-    obtenidos = df['obtenido'].sum()
-    porcentaje = int((obtenidos / total_items) * 100) if total_items > 0 else 0
-
-    m1, m2 = st.columns([2, 1])
-    with m1:
-        st.metric("Progreso", f"{obtenidos}/{total_items}")
-    with m2:
-        st.metric("Completado", f"{porcentaje}%")
-    st.progress(porcentaje / 100)
-
     sets_completos = []
     for s in df['nombre_set'].unique():
         temp_df = df[df['nombre_set'] == s]
