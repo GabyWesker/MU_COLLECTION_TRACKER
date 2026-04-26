@@ -317,8 +317,6 @@ if 'filtro_k' not in st.session_state:
     st.session_state.filtro_k = "Todos"
 if 'busqueda' not in st.session_state:
     st.session_state.busqueda = ""
-if 'orden' not in st.session_state:
-    st.session_state.orden = "Por Set"
 if 'filtro_set' not in st.session_state:
     st.session_state.filtro_set = "Todos"
 
@@ -426,24 +424,19 @@ with st.sidebar:
                 st.rerun()
         st.caption(f"Cuenta: {username_logged}")
     
-    with st.expander("📊 Ordenar"):
-        orden_opts = ["Por Set", "Por Estado", "Por K"]
-        orden = st.selectbox("Ordenar:", orden_opts, index=orden_opts.index(st.session_state.orden), key="orden_select")
-        st.session_state.orden = orden
-    
     with st.expander("➕ Crear Set Completo"):
-        with st.form("nuevo_set_form"):
-            st.write("Añadir 5 piezas de un set")
-            nombre_nuevo = st.text_input("Nombre del Set", key="input_set_nombre")
-            k_nuevo = st.number_input("Nivel de Kundun", min_value=1, max_value=5, value=1, key="input_kundun")
+        sets_en_db = sorted(df['nombre_set'].unique().tolist()) if not df.empty else []
+        
+        if not sets_en_db:
+            st.info("No hay sets en tu colección. Agrega items primero.")
+        else:
+            seleccion_set = st.selectbox("Seleccionar Set:", sets_en_db, key="sel_set")
+            k_nuevo = st.number_input("Kundun", min_value=1, max_value=5, value=1, key="input_kundun")
             
-            if st.form_submit_button("Crear Set"):
-                if nombre_nuevo:
-                    if create_set_complete(user_id, nombre_nuevo, k_nuevo):
-                        st.success(f"Set {nombre_nuevo} creado!")
-                        st.rerun()
-                else:
-                    st.error("Poné un nombre para el set.")
+            if st.button("Crear Set", key="btn_crear_set"):
+                if create_set_complete(user_id, seleccion_set, k_nuevo):
+                    st.success(f"Set {seleccion_set} creado!")
+                    st.rerun()
     
     with st.expander("➕ Añadir Items"):
         c1, c2 = st.columns(2)
@@ -501,27 +494,47 @@ total_items = len(df) if not df.empty else 0
 obtenidos = df['obtenido'].sum() if not df.empty else 0
 porcentaje = int((obtenidos / total_items) * 100) if total_items > 0 else 0
 
-f_bus, f_est, f_k, f_set = st.columns([3, 1, 1, 1])
-with f_bus:
-    busqueda = st.text_input("🔍 Buscar", st.session_state.busqueda, key="busqueda_input")
-    if busqueda.lower() != st.session_state.busqueda:
-        st.session_state.busqueda = busqueda.lower()
-with f_est:
-    filtro_opts = ["Todos", "Pendientes ❌", "Completados ✅"]
-    filtro = st.selectbox("Estado:", filtro_opts, index=filtro_opts.index(st.session_state.filtro), key="filtro_select")
-    st.session_state.filtro = filtro
-with f_k:
-    filtro_k_opts = ["Todos", "K1", "K2", "K3", "K4", "K5"]
-    filtro_k = st.selectbox("K:", filtro_k_opts, index=filtro_k_opts.index(st.session_state.filtro_k), key="filtro_k_select")
-    st.session_state.filtro_k = filtro_k
-with f_set:
-    filtro_set_opts = ["Todos"] + sorted(df['nombre_set'].unique().tolist()) if not df.empty else ["Todos"]
-    try:
-        filtro_set_idx = filtro_set_opts.index(st.session_state.filtro_set)
-    except:
-        filtro_set_idx = 0
-    filtro_set = st.selectbox("Set:", filtro_set_opts, index=filtro_set_idx, key="filtro_set_select")
-    st.session_state.filtro_set = filtro_set
+filtro_set_opts = ["Todos"] + sorted(df['nombre_set'].unique().tolist()) if not df.empty else []
+show_set_filter = bool(filtro_set_opts)
+
+filtro_set_opts = ["Todos"] + sorted(df['nombre_set'].unique().tolist()) if not df.empty else []
+show_set_filter = bool(filtro_set_opts)
+
+if show_set_filter:
+    f_bus, f_est, f_k, f_set = st.columns([3, 1, 1, 1])
+    with f_bus:
+        busqueda = st.text_input("🔍 Buscar", st.session_state.busqueda, key="busqueda_input")
+        if busqueda.lower() != st.session_state.busqueda:
+            st.session_state.busqueda = busqueda.lower()
+    with f_est:
+        filtro_opts = ["Todos", "Pendientes ❌", "Completados ✅"]
+        filtro = st.selectbox("Estado:", filtro_opts, index=filtro_opts.index(st.session_state.filtro), key="filtro_select")
+        st.session_state.filtro = filtro
+    with f_k:
+        filtro_k_opts = ["Todos", "K1", "K2", "K3", "K4", "K5"]
+        filtro_k = st.selectbox("K:", filtro_k_opts, index=filtro_k_opts.index(st.session_state.filtro_k), key="filtro_k_select")
+        st.session_state.filtro_k = filtro_k
+    with f_set:
+        try:
+            filtro_set_idx = filtro_set_opts.index(st.session_state.filtro_set)
+        except:
+            filtro_set_idx = 0
+        filtro_set = st.selectbox("Set:", filtro_set_opts, index=filtro_set_idx, key="filtro_set_select")
+        st.session_state.filtro_set = filtro_set
+else:
+    f_bus, f_est, f_k = st.columns([3, 1, 1])
+    with f_bus:
+        busqueda = st.text_input("🔍 Buscar", st.session_state.busqueda, key="busqueda_input")
+        if busqueda.lower() != st.session_state.busqueda:
+            st.session_state.busqueda = busqueda.lower()
+    with f_est:
+        filtro_opts = ["Todos", "Pendientes ❌", "Completados ✅"]
+        filtro = st.selectbox("Estado:", filtro_opts, index=filtro_opts.index(st.session_state.filtro), key="filtro_select")
+        st.session_state.filtro = filtro
+    with f_k:
+        filtro_k_opts = ["Todos", "K1", "K2", "K3", "K4", "K5"]
+        filtro_k = st.selectbox("K:", filtro_k_opts, index=filtro_k_opts.index(st.session_state.filtro_k), key="filtro_k_select")
+        st.session_state.filtro_k = filtro_k
 
 c1, c2 = st.columns([1, 1])
 with c1:
@@ -588,8 +601,18 @@ if st.session_state.ver_modo == "Tabla":
                 desc = df_premios[df_premios['nombre_set'] == s]['bonus_desc'].values
                 txt = desc[0] if len(desc) > 0 else "Bonus Activado"
                 cols[i % 2].success(f"**{s}:** {txt}")
-
 df_display = df.copy()
+df_display['obtenido'] = df_display['obtenido'].astype(int)
+df_display['luck'] = df_display['luck'].astype(int)
+df_display['opt_sd'] = df_display['opt_sd'].astype(int)
+df_display['opt_dd'] = df_display['opt_dd'].astype(int)
+df_display['opt_dsr'] = df_display['opt_dsr'].astype(int)
+df_display['opt_ref'] = df_display['opt_ref'].astype(int)
+df_display['opt_hp'] = df_display['opt_hp'].astype(int)
+df_display['opt_zen'] = df_display['opt_zen'].astype(int)
+df_display['nivel_bs'] = df_display['nivel_bs'].fillna(0).astype(int)
+df_display['add_lif'] = df_display['add_lif'].fillna(0).astype(int)
+
 if busqueda:
     mask = df_display.apply(lambda r: busqueda in str(r['nombre_set']).lower() or busqueda in str(r['pieza']).lower(), axis=1)
     df_display = df_display[mask]
@@ -605,12 +628,7 @@ if filtro_k != "Todos":
 if st.session_state.filtro_set != "Todos":
     df_display = df_display[df_display['nombre_set'] == st.session_state.filtro_set]
 
-if st.session_state.orden == "Por Set":
-    df_display = df_display.sort_values(['nombre_set', 'kundun', 'pieza'])
-elif st.session_state.orden == "Por Estado":
-    df_display = df_display.sort_values(['obtenido', 'nombre_set', 'kundun'], ascending=[False, True, True])
-elif st.session_state.orden == "Por K":
-    df_display = df_display.sort_values(['kundun', 'nombre_set', 'pieza'], ascending=[False, True, True])
+df_display = df_display.sort_values(['nombre_set', 'kundun', 'pieza'])
 
 if st.session_state.ver_modo == "Tabla":
     st.subheader("📋 Tabla de Items")
@@ -620,7 +638,7 @@ if st.session_state.ver_modo == "Tabla":
     
     if not df_display.empty:
         header_cols = ["🗑️", "🔍", "✅", "Set", "Parte", "K", "Luck 🍀", "Enc", "LIFE", "SD", "DD", "DSR", "REF", "HP", "ZEN"]
-        col_widths = [0.4, 0.5, 0.6, 2, 1, 0.5, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
+        col_widths = [0.4, 0.5, 0.6, 1.5, 0.8, 0.4, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
         headers = st.columns(col_widths)
         
         for i, h in enumerate(headers):
@@ -628,7 +646,7 @@ if st.session_state.ver_modo == "Tabla":
                 st.caption(f"<b>{header_cols[i]}</b>", unsafe_allow_html=True)
         
         for idx, row in df_display.iterrows():
-            cols = st.columns(col_widths)
+            cols = st.columns([0.4, 0.5, 0.6, 1.5, 0.8, 0.4, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4])
             
             with cols[0]:
                 if st.button("🗑️", key=f"del_{row['id']}"):
@@ -643,21 +661,30 @@ if st.session_state.ver_modo == "Tabla":
             with cols[2]:
                 cb_obt_key = f"cb_obt_{row['id']}"
                 new_val = st.checkbox("", value=bool(row['obtenido']), key=cb_obt_key)
-                if new_val != bool(row['obtenido']):
-                    df_display.at[idx, 'obtenido'] = new_val
+                current_obt = int(row['obtenido']) if row['obtenido'] else 0
+                new_obt = 1 if new_val else 0
+                if new_obt != current_obt:
+                    df_display.at[idx, 'obtenido'] = new_obt
             
             with cols[3]:
                 st.write(row['nombre_set'])
             with cols[4]:
                 st.write(row['pieza'])
             with cols[5]:
-                st.write(f"K{row['kundun']}")
+                k_val = row['kundun'] or 1
+                with st.expander(f"K{k_val}"):
+                    k_key = f"k_{row['id']}"
+                    new_k = st.number_input("Kundun", value=int(k_val), min_value=1, max_value=5, key=k_key)
+                    if new_k != k_val:
+                        df_display.at[idx, 'kundun'] = new_k
             
             with cols[6]:
                 luck_key = f"luck_{row['id']}"
                 luck_val = st.checkbox("", value=bool(row['luck']), key=luck_key)
-                if luck_val != bool(row['luck']):
-                    df_display.at[idx, 'luck'] = 1 if luck_val else 0
+                current_luck = int(row['luck']) if row['luck'] else 0
+                new_luck = 1 if luck_val else 0
+                if new_luck != current_luck:
+                    df_display.at[idx, 'luck'] = new_luck
             
             with cols[7]:
                 enc_val = row['nivel_bs'] or 0
@@ -678,33 +705,45 @@ if st.session_state.ver_modo == "Tabla":
             with cols[9]:
                 sd_key = f"sd_{row['id']}"
                 sd_val = st.checkbox("", value=bool(row['opt_sd']), key=sd_key)
-                if sd_val != bool(row['opt_sd']):
-                    df_display.at[idx, 'opt_sd'] = 1 if sd_val else 0
+                current_sd = int(row['opt_sd']) if row['opt_sd'] else 0
+                new_sd = 1 if sd_val else 0
+                if new_sd != current_sd:
+                    df_display.at[idx, 'opt_sd'] = new_sd
             with cols[10]:
                 dd_key = f"dd_{row['id']}"
                 dd_val = st.checkbox("", value=bool(row['opt_dd']), key=dd_key)
-                if dd_val != bool(row['opt_dd']):
-                    df_display.at[idx, 'opt_dd'] = 1 if dd_val else 0
+                current_dd = int(row['opt_dd']) if row['opt_dd'] else 0
+                new_dd = 1 if dd_val else 0
+                if new_dd != current_dd:
+                    df_display.at[idx, 'opt_dd'] = new_dd
             with cols[11]:
                 dsr_key = f"dsr_{row['id']}"
                 dsr_val = st.checkbox("", value=bool(row['opt_dsr']), key=dsr_key)
-                if dsr_val != bool(row['opt_dsr']):
-                    df_display.at[idx, 'opt_dsr'] = 1 if dsr_val else 0
+                current_dsr = int(row['opt_dsr']) if row['opt_dsr'] else 0
+                new_dsr = 1 if dsr_val else 0
+                if new_dsr != current_dsr:
+                    df_display.at[idx, 'opt_dsr'] = new_dsr
             with cols[12]:
                 ref_key = f"ref_{row['id']}"
                 ref_val = st.checkbox("", value=bool(row['opt_ref']), key=ref_key)
-                if ref_val != bool(row['opt_ref']):
-                    df_display.at[idx, 'opt_ref'] = 1 if ref_val else 0
+                current_ref = int(row['opt_ref']) if row['opt_ref'] else 0
+                new_ref = 1 if ref_val else 0
+                if new_ref != current_ref:
+                    df_display.at[idx, 'opt_ref'] = new_ref
             with cols[13]:
                 hp_key = f"hp_{row['id']}"
                 hp_val = st.checkbox("", value=bool(row['opt_hp']), key=hp_key)
-                if hp_val != bool(row['opt_hp']):
-                    df_display.at[idx, 'opt_hp'] = 1 if hp_val else 0
+                current_hp = int(row['opt_hp']) if row['opt_hp'] else 0
+                new_hp = 1 if hp_val else 0
+                if new_hp != current_hp:
+                    df_display.at[idx, 'opt_hp'] = new_hp
             with cols[14]:
                 zen_key = f"zen_{row['id']}"
                 zen_val = st.checkbox("", value=bool(row['opt_zen']), key=zen_key)
-                if zen_val != bool(row['opt_zen']):
-                    df_display.at[idx, 'opt_zen'] = 1 if zen_val else 0
+                current_zen = int(row['opt_zen']) if row['opt_zen'] else 0
+                new_zen = 1 if zen_val else 0
+                if new_zen != current_zen:
+                    df_display.at[idx, 'opt_zen'] = new_zen
             
             if st.session_state.get(f"show_market_{row['id']}", False):
                 show_market_results(
