@@ -14,7 +14,25 @@ MU_API_TOKEN = st.secrets["MU_API_TOKEN"] if "MU_API_TOKEN" in st.secrets else "
 def search_market(item_name, luck=None, excellent_options=None, ancient=False):
     try:
         headers = {"Authorization": f"Bearer {MU_API_TOKEN}"}
-        params = {"query": item_name, "limit": 25}
+        params = {
+            "query": item_name, 
+            "limit": 25
+        }
+        
+        if excellent_options:
+            api_codes = {
+                "sd": "imsd",
+                "dd": "dd",
+                "dsr": "dsr",
+                "ref": "rd",
+                "hp": "iml",  # Increase Maximum Life
+                "zen": "izdr"
+            }
+            opts_filter = []
+            for opt in excellent_options:
+                code = api_codes.get(opt.lower(), opt.lower())
+                opts_filter.extend([f"{code}0", f"{code}1", f"{code}2", f"{code}3", f"{code}4"])
+            params["options"] = ",".join(opts_filter)
         
         response = requests.get(MU_API_URL, headers=headers, params=params, timeout=10)
         
@@ -25,33 +43,22 @@ def search_market(item_name, luck=None, excellent_options=None, ancient=False):
             required_opts = excellent_options if excellent_options else []
             results = []
             for item in items:
-                item_opts = [o.lower() for o in item.get("options", [])]
+                item_opts = item.get("options", [])
                 
                 has_all_opts = True
-                for opt in required_opts:
-                    opt_found = any(opt.lower() in item_opt for item_opt in item_opts)
-                    if not opt_found:
-                        has_all_opts = False
-                        break
                 
                 if luck and not item.get("hasLuck"):
                     has_all_opts = False
                 
-                if ancient and not item.get("isAncient"):
-                    has_all_opts = False
+                if not has_all_opts:
+                    continue
                 
-                match_score = 0
-                reasons = []
-                
-                if has_all_opts:
-                    match_score = 1
-                    if luck: reasons.append("Luck")
-                    for opt in required_opts:
-                        for item_opt in item.get("options", []):
-                            if opt.lower() in item_opt.lower():
-                                reasons.append(item_opt)
-                                break
-                    if ancient: reasons.append("Ancient")
+                match_reasons = []
+                if luck: match_reasons.append("Luck")
+                for opt in required_opts:
+                    for item_opt in item_opts:
+                        match_reasons.append(item_opt)
+                        break
                 
                 results.append({
                     "name": item.get("name", ""),
@@ -61,15 +68,14 @@ def search_market(item_name, luck=None, excellent_options=None, ancient=False):
                     "hasLuck": item.get("hasLuck", False),
                     "hasSkill": item.get("hasSkill", False),
                     "gearScore": item.get("gearScore", 0),
-                    "options": item.get("options", []),
+                    "options": item_opts,
                     "prices": item.get("prices", []),
                     "imageUrl": item.get("imageUrl", ""),
-                    "match_score": match_score,
-                    "match_reasons": reasons
+                    "match_score": 1,
+                    "match_reasons": match_reasons
                 })
             
-            results.sort(key=lambda x: x["match_score"], reverse=True)
-            return results[:10]
+            return results
             
         elif response.status_code == 401:
             st.error("Token de API inválido")
@@ -313,6 +319,8 @@ if 'busqueda' not in st.session_state:
     st.session_state.busqueda = ""
 if 'orden' not in st.session_state:
     st.session_state.orden = "Por Set"
+if 'filtro_set' not in st.session_state:
+    st.session_state.filtro_set = "Todos"
 
 if not st.session_state.logged_in:
     tab_login, tab_register = st.tabs(["🔐 Iniciar Sesión", "📝 Registrarse"])
@@ -472,7 +480,9 @@ with st.sidebar:
 
 st.divider()
 
-f1, f2, f3, f4, f5 = st.columns([2, 1, 1, 1, 1])
+filtro_set_opts = ["Todos"] + sorted(df['nombre_set'].unique().tolist()) if not df.empty else ["Todos"]
+
+f1, f2, f3, f4, f5, f6 = st.columns([2, 1, 1, 1, 1, 1])
 with f1:
     busqueda = st.text_input("🔍 Buscar", st.session_state.busqueda, key="busqueda_input")
     if busqueda.lower() != st.session_state.busqueda:
@@ -490,6 +500,13 @@ with f4:
     filtro_k = st.selectbox("K:", filtro_k_opts, index=filtro_k_opts.index(st.session_state.filtro_k), key="filtro_k_select")
     st.session_state.filtro_k = filtro_k
 with f5:
+    try:
+        filtro_set_idx = filtro_set_opts.index(st.session_state.filtro_set)
+    except:
+        filtro_set_idx = 0
+    filtro_set = st.selectbox("Set:", filtro_set_opts, index=filtro_set_idx, key="filtro_set_select")
+    st.session_state.filtro_set = filtro_set
+with f6:
     orden_opts = ["Por Set", "Por Estado", "Por K"]
     orden = st.selectbox("Ordenar:", orden_opts, index=orden_opts.index(st.session_state.orden), key="orden_select")
     st.session_state.orden = orden
@@ -577,6 +594,9 @@ if filtro_k != "Todos":
     k_val = int(filtro_k[1])
     df_display = df_display[df_display['kundun'] == k_val]
 
+if st.session_state.filtro_set != "Todos":
+    df_display = df_display[df_display['nombre_set'] == st.session_state.filtro_set]
+
 if st.session_state.orden == "Por Set":
     df_display = df_display.sort_values(['nombre_set', 'kundun', 'pieza'])
 elif st.session_state.orden == "Por Estado":
@@ -587,74 +607,95 @@ elif st.session_state.orden == "Por K":
 if st.session_state.ver_modo == "Tabla":
     st.subheader("📋 Tabla de Items")
     
+    if 'selected_for_market' not in st.session_state:
+        st.session_state.selected_for_market = set()
+    
     if not df_display.empty:
-        header_cols = ["🔍", "✅", "Set", "Parte", "K", "L", "Enc", "LIFE", "SD", "DD", "DSR", "REF", "HP", "ZEN"]
-        headers = st.columns([0.5, 0.5, 2, 1, 0.5, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4])
-        for i, h in enumerate(headers):
+        header_cols = ["☑️", "🔍", "✅", "Set", "Parte", "K", "L", "Enc", "LIFE", "SD", "DD", "DSR", "REF", "HP", "ZEN"]
+        col_widths = [0.5, 0.5, 0.5, 2, 1, 0.5, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
+        headers = st.columns(col_widths)
+        
+        with headers[0]:
+            select_all = st.checkbox("", value=False, key="select_all_checkbox")
+            if select_all:
+                pending_ids = df_display[~df_display['obtenido']]['id'].tolist()
+                st.session_state.selected_for_market = set(pending_ids)
+            elif not select_all and st.session_state.selected_for_market:
+                st.session_state.selected_for_market = set()
+        
+        for i, h in enumerate(headers[1:], 1):
             with h:
-                if i == 0:
-                    st.caption("🔄")
-                elif i == 1:
+                if i == 1:
+                    st.caption("🔍")
+                elif i == 2:
                     st.caption("✅")
-                elif i == 4:
-                    st.caption("K")
                 elif i == 5:
-                    st.caption("🍀")
+                    st.caption("K")
                 elif i == 6:
-                    st.caption("Enc")
+                    st.caption("🍀")
                 elif i == 7:
-                    st.caption("LIFE")
+                    st.caption("Enc")
                 elif i == 8:
-                    st.caption("SD")
+                    st.caption("LIFE")
                 elif i == 9:
-                    st.caption("DD")
+                    st.caption("SD")
                 elif i == 10:
-                    st.caption("DSR")
+                    st.caption("DD")
                 elif i == 11:
-                    st.caption("REF")
+                    st.caption("DSR")
                 elif i == 12:
-                    st.caption("HP")
+                    st.caption("REF")
                 elif i == 13:
+                    st.caption("HP")
+                elif i == 14:
                     st.caption("ZEN")
                 else:
                     st.caption(header_cols[i])
         
         for idx, row in df_display.iterrows():
-            cols = st.columns([0.5, 0.5, 2, 1, 0.5, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4])
+            cols = st.columns(col_widths)
             
             with cols[0]:
+                cb_key = f"select_market_{row['id']}"
+                is_selected = st.checkbox("", value=row['id'] in st.session_state.selected_for_market, key=cb_key)
+                if is_selected:
+                    st.session_state.selected_for_market.add(row['id'])
+                else:
+                    st.session_state.selected_for_market.discard(row['id'])
+            
+            with cols[1]:
                 if st.button("🔍", key=f"search_{row['id']}"):
                     st.session_state[f"show_market_{row['id']}"] = not st.session_state.get(f"show_market_{row['id']}", False)
             
-            with cols[1]:
-                cb_key = f"cb_obt_{row['id']}"
-                new_val = st.checkbox("", value=bool(row['obtenido']), key=cb_key)
+            with cols[2]:
+                cb_obt_key = f"cb_obt_{row['id']}"
+                new_val = st.checkbox("", value=bool(row['obtenido']), key=cb_obt_key)
                 if new_val != bool(row['obtenido']):
                     df_display.at[idx, 'obtenido'] = new_val
             
-            with cols[2]:
-                st.write(row['nombre_set'])
             with cols[3]:
-                st.write(row['pieza'])
+                st.write(row['nombre_set'])
             with cols[4]:
-                st.write(f"K{row['kundun']}")
+                st.write(row['pieza'])
             with cols[5]:
-                st.write("🍀" if row['luck'] else "")
+                st.write(f"K{row['kundun']}")
             with cols[6]:
-                st.write(f"+{row['nivel_bs']}" if row['nivel_bs'] else "0")
+                st.write("🍀" if row['luck'] else "")
             with cols[7]:
-                st.write(row['add_lif'] if row['add_lif'] else "0")
+                st.write(f"+{row['nivel_bs']}" if row['nivel_bs'] else "0")
             with cols[8]:
-                st.write("✓" if row['opt_sd'] else "")
+                st.write(row['add_lif'] if row['add_lif'] else "0")
             with cols[9]:
-                st.write("✓" if row['opt_dd'] else "")
+                st.write("✓" if row['opt_sd'] else "")
             with cols[10]:
-                st.write("✓" if row['opt_dsr'] else "")
+                st.write("✓" if row['opt_dd'] else "")
             with cols[11]:
-                st.write("✓" if row['opt_ref'] else "")
+                st.write("✓" if row['opt_dsr'] else "")
             with cols[12]:
-                st.write("✓" if row['opt_hp'] else "")
+                st.write("✓" if row['opt_ref'] else "")
             with cols[13]:
+                st.write("✓" if row['opt_hp'] else "")
+            with cols[14]:
                 st.write("✓" if row['opt_zen'] else "")
             
             if st.session_state.get(f"show_market_{row['id']}", False):
@@ -664,6 +705,30 @@ if st.session_state.ver_modo == "Tabla":
                     bool(row['opt_dd']), bool(row['opt_dsr']), bool(row['opt_ref']),
                     bool(row['opt_hp']), bool(row['opt_zen']), bool(row['opt_sd'])
                 )
+        
+        st.divider()
+        
+        selected_ids = st.session_state.selected_for_market
+        if selected_ids:
+            col_btn, col_count = st.columns([3, 1])
+            with col_btn:
+                if st.button(f"🔍 Buscar Mercado ({len(selected_ids)} items)", use_container_width=True, key="btn_search_market"):
+                    st.session_state.show_bulk_market = not st.session_state.get('show_bulk_market', False)
+            
+            with col_count:
+                st.write(f"{len(selected_ids)} items")
+            
+            if st.session_state.get('show_bulk_market', False):
+                with st.expander("📦 Resultados del Mercado - Búsqueda Global", expanded=True):
+                    selected_df = df_display[df_display['id'].isin(selected_ids)]
+                    for _, item_row in selected_df.iterrows():
+                        st.markdown(f"---")
+                        show_market_results(
+                            item_row['nombre_set'], item_row['pieza'], 
+                            bool(item_row['luck']), 
+                            bool(item_row['opt_dd']), bool(item_row['opt_dsr']), bool(item_row['opt_ref']),
+                            bool(item_row['opt_hp']), bool(item_row['opt_zen']), bool(item_row['opt_sd'])
+                        )
         
         st.divider()
         
@@ -700,7 +765,7 @@ if st.session_state.ver_modo == "Galería":
         with col1:
             s = sets_nombres[i]
             with st.container(border=True):
-                c_img, c_info = st.columns([1, 2])
+                c_img, c_info, c_btn = st.columns([1, 2, 0.5])
                 with c_img:
                     img_path = find_image(s)
                     if img_path and os.path.exists(img_path):
@@ -715,14 +780,31 @@ if st.session_state.ver_modo == "Galería":
                     piezas_del_set = df_display[df_display['nombre_set'] == s]
                     for _, p in piezas_del_set.iterrows():
                         icono = "✅" if p['obtenido'] else "❌"
-                        k_val = f" | K{int(p['kundun'])}" if p['kundun'] else ""
-                        st.write(f"{icono} {p['pieza']}{k_val}")
+                        st.write(f"{icono} {p['pieza']}")
+                with c_btn:
+                    st.write("")
+                    if st.button("🔍", key=f"gal_search_{s}"):
+                        st.session_state[f"gal_market_{s}"] = not st.session_state.get(f"gal_market_{s}", False)
+        
+        if st.session_state.get(f"gal_market_{s}", False):
+            with st.expander(f"🔍 Mercado: {s}", expanded=True):
+                piezas_del_set = df_display[(df_display['nombre_set'] == s) & (df_display['obtenido'] == False)]
+                if piezas_del_set.empty:
+                    st.info("Todas las piezas de este set ya están obtenidas!")
+                else:
+                    for _, p in piezas_del_set.iterrows():
+                        show_market_results(
+                            s, p['pieza'],
+                            bool(p['luck']),
+                            bool(p['opt_dd']), bool(p['opt_dsr']), bool(p['opt_ref']),
+                            bool(p['opt_hp']), bool(p['opt_zen']), bool(p['opt_sd'])
+                        )
         
         if i + 1 < len(sets_nombres):
             with col2:
                 s = sets_nombres[i + 1]
                 with st.container(border=True):
-                    c_img, c_info = st.columns([1, 2])
+                    c_img, c_info, c_btn = st.columns([1, 2, 0.5])
                     with c_img:
                         img_path = find_image(s)
                         if img_path and os.path.exists(img_path):
@@ -737,8 +819,25 @@ if st.session_state.ver_modo == "Galería":
                         piezas_del_set = df_display[df_display['nombre_set'] == s]
                         for _, p in piezas_del_set.iterrows():
                             icono = "✅" if p['obtenido'] else "❌"
-                            k_val = f" | K{int(p['kundun'])}" if p['kundun'] else ""
-                            st.write(f"{icono} {p['pieza']}{k_val}")
+                            st.write(f"{icono} {p['pieza']}")
+                    with c_btn:
+                        st.write("")
+                        if st.button("🔍", key=f"gal_search_{s}_{i+1}"):
+                            st.session_state[f"gal_market_{s}"] = not st.session_state.get(f"gal_market_{s}", False)
+        
+        if i + 1 < len(sets_nombres) and st.session_state.get(f"gal_market_{sets_nombres[i + 1]}", False):
+            with st.expander(f"🔍 Mercado: {sets_nombres[i + 1]}", expanded=True):
+                piezas_del_set = df_display[(df_display['nombre_set'] == sets_nombres[i + 1]) & (df_display['obtenido'] == False)]
+                if piezas_del_set.empty:
+                    st.info("Todas las piezas de este set ya están obtenidas!")
+                else:
+                    for _, p in piezas_del_set.iterrows():
+                        show_market_results(
+                            sets_nombres[i + 1], p['pieza'],
+                            bool(p['luck']),
+                            bool(p['opt_dd']), bool(p['opt_dsr']), bool(p['opt_ref']),
+                            bool(p['opt_hp']), bool(p['opt_zen']), bool(p['opt_sd'])
+                        )
 
     st.divider()
 
