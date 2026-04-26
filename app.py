@@ -234,7 +234,17 @@ def create_set_complete(user_id, nombre_set, kundun):
     try:
         conn = get_connection()
         cursor = conn.cursor()
-        piezas = ["Helm", "Armor", "Pants", "Gloves", "Boots"]
+        
+        sets_sin_helm = ["Storm Crow", "Thunder Hawk"]
+        sets_sin_guantes = ["Sacred Fire", "Storm Zahard"]
+        
+        if nombre_set in sets_sin_helm:
+            piezas = ["Armor", "Pants", "Gloves", "Boots"]
+        elif nombre_set in sets_sin_guantes:
+            piezas = ["Helm", "Armor", "Pants", "Boots"]
+        else:
+            piezas = ["Helm", "Armor", "Pants", "Gloves", "Boots"]
+        
         for p in piezas:
             cursor.execute("""
                 INSERT INTO sets (user_id, nombre_set, pieza, kundun, obtenido)
