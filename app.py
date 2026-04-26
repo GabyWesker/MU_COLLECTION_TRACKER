@@ -619,40 +619,13 @@ if st.session_state.ver_modo == "Tabla":
         st.session_state.selected_for_market = set()
     
     if not df_display.empty:
-        header_cols = ["🗑️", "🔍", "Obtenido", "Set", "Parte", "K", "L", "Enc", "LIFE", "SD", "DD", "DSR", "REF", "HP", "ZEN"]
+        header_cols = ["🗑️", "🔍", "✅", "Set", "Parte", "K", "Luck 🍀", "Enc", "LIFE", "SD", "DD", "DSR", "REF", "HP", "ZEN"]
         col_widths = [0.4, 0.5, 0.6, 2, 1, 0.5, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
         headers = st.columns(col_widths)
         
         for i, h in enumerate(headers):
             with h:
-                if i == 0:
-                    st.caption("🗑️Delete")
-                elif i == 1:
-                    st.caption("🔍Search")
-                elif i == 2:
-                    st.caption("✅Obtain")
-                elif i == 5:
-                    st.caption("Kund")
-                elif i == 6:
-                    st.caption("🍀Luck")
-                elif i == 7:
-                    st.caption("Enc")
-                elif i == 8:
-                    st.caption("Life")
-                elif i == 9:
-                    st.caption("SD")
-                elif i == 10:
-                    st.caption("DD")
-                elif i == 11:
-                    st.caption("DSR")
-                elif i == 12:
-                    st.caption("REF")
-                elif i == 13:
-                    st.caption("HP")
-                elif i == 14:
-                    st.caption("ZEN")
-                else:
-                    st.caption(header_cols[i])
+                st.caption(f"<b>{header_cols[i]}</b>", unsafe_allow_html=True)
         
         for idx, row in df_display.iterrows():
             cols = st.columns(col_widths)
@@ -679,24 +652,59 @@ if st.session_state.ver_modo == "Tabla":
                 st.write(row['pieza'])
             with cols[5]:
                 st.write(f"K{row['kundun']}")
+            
             with cols[6]:
-                st.write("🍀" if row['luck'] else "")
+                luck_key = f"luck_{row['id']}"
+                luck_val = st.checkbox("", value=bool(row['luck']), key=luck_key)
+                if luck_val != bool(row['luck']):
+                    df_display.at[idx, 'luck'] = 1 if luck_val else 0
+            
             with cols[7]:
-                st.write(f"+{row['nivel_bs']}" if row['nivel_bs'] else "0")
+                enc_val = row['nivel_bs'] or 0
+                with st.expander(f"+{enc_val}"):
+                    enc_key = f"enc_{row['id']}"
+                    new_enc = st.number_input("Enchant", value=int(enc_val), min_value=0, max_value=15, key=enc_key)
+                    if new_enc != enc_val:
+                        df_display.at[idx, 'nivel_bs'] = new_enc
+            
             with cols[8]:
-                st.write(row['add_lif'] if row['add_lif'] else "0")
+                life_val = row['add_lif'] or 0
+                with st.expander(f"+{life_val}"):
+                    life_key = f"life_{row['id']}"
+                    new_life = st.number_input("Life", value=int(life_val), min_value=0, max_value=28, key=life_key)
+                    if new_life != life_val:
+                        df_display.at[idx, 'add_lif'] = new_life
+            
             with cols[9]:
-                st.write("✓" if row['opt_sd'] else "")
+                sd_key = f"sd_{row['id']}"
+                sd_val = st.checkbox("", value=bool(row['opt_sd']), key=sd_key)
+                if sd_val != bool(row['opt_sd']):
+                    df_display.at[idx, 'opt_sd'] = 1 if sd_val else 0
             with cols[10]:
-                st.write("✓" if row['opt_dd'] else "")
+                dd_key = f"dd_{row['id']}"
+                dd_val = st.checkbox("", value=bool(row['opt_dd']), key=dd_key)
+                if dd_val != bool(row['opt_dd']):
+                    df_display.at[idx, 'opt_dd'] = 1 if dd_val else 0
             with cols[11]:
-                st.write("✓" if row['opt_dsr'] else "")
+                dsr_key = f"dsr_{row['id']}"
+                dsr_val = st.checkbox("", value=bool(row['opt_dsr']), key=dsr_key)
+                if dsr_val != bool(row['opt_dsr']):
+                    df_display.at[idx, 'opt_dsr'] = 1 if dsr_val else 0
             with cols[12]:
-                st.write("✓" if row['opt_ref'] else "")
+                ref_key = f"ref_{row['id']}"
+                ref_val = st.checkbox("", value=bool(row['opt_ref']), key=ref_key)
+                if ref_val != bool(row['opt_ref']):
+                    df_display.at[idx, 'opt_ref'] = 1 if ref_val else 0
             with cols[13]:
-                st.write("✓" if row['opt_hp'] else "")
+                hp_key = f"hp_{row['id']}"
+                hp_val = st.checkbox("", value=bool(row['opt_hp']), key=hp_key)
+                if hp_val != bool(row['opt_hp']):
+                    df_display.at[idx, 'opt_hp'] = 1 if hp_val else 0
             with cols[14]:
-                st.write("✓" if row['opt_zen'] else "")
+                zen_key = f"zen_{row['id']}"
+                zen_val = st.checkbox("", value=bool(row['opt_zen']), key=zen_key)
+                if zen_val != bool(row['opt_zen']):
+                    df_display.at[idx, 'opt_zen'] = 1 if zen_val else 0
             
             if st.session_state.get(f"show_market_{row['id']}", False):
                 show_market_results(
