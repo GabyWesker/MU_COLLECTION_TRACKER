@@ -619,32 +619,26 @@ if st.session_state.ver_modo == "Tabla":
         st.session_state.selected_for_market = set()
     
     if not df_display.empty:
-        header_cols = ["☑️", "🔍", "✅", "Set", "Parte", "K", "L", "Enc", "LIFE", "SD", "DD", "DSR", "REF", "HP", "ZEN"]
-        col_widths = [0.5, 0.5, 0.5, 2, 1, 0.5, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
+        header_cols = ["🗑️", "🔍", "Obtenido", "Set", "Parte", "K", "L", "Enc", "LIFE", "SD", "DD", "DSR", "REF", "HP", "ZEN"]
+        col_widths = [0.4, 0.5, 0.6, 2, 1, 0.5, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
         headers = st.columns(col_widths)
         
-        with headers[0]:
-            select_all = st.checkbox("", value=False, key="select_all_checkbox")
-            if select_all:
-                pending_ids = df_display[~df_display['obtenido']]['id'].tolist()
-                st.session_state.selected_for_market = set(pending_ids)
-            elif not select_all and st.session_state.selected_for_market:
-                st.session_state.selected_for_market = set()
-        
-        for i, h in enumerate(headers[1:], 1):
+        for i, h in enumerate(headers):
             with h:
-                if i == 1:
-                    st.caption("🔍")
+                if i == 0:
+                    st.caption("🗑️Delete")
+                elif i == 1:
+                    st.caption("🔍Search")
                 elif i == 2:
-                    st.caption("✅")
+                    st.caption("✅Obtain")
                 elif i == 5:
-                    st.caption("K")
+                    st.caption("Kund")
                 elif i == 6:
-                    st.caption("🍀")
+                    st.caption("🍀Luck")
                 elif i == 7:
                     st.caption("Enc")
                 elif i == 8:
-                    st.caption("LIFE")
+                    st.caption("Life")
                 elif i == 9:
                     st.caption("SD")
                 elif i == 10:
@@ -664,12 +658,10 @@ if st.session_state.ver_modo == "Tabla":
             cols = st.columns(col_widths)
             
             with cols[0]:
-                cb_key = f"select_market_{row['id']}"
-                is_selected = st.checkbox("", value=row['id'] in st.session_state.selected_for_market, key=cb_key)
-                if is_selected:
-                    st.session_state.selected_for_market.add(row['id'])
-                else:
-                    st.session_state.selected_for_market.discard(row['id'])
+                if st.button("🗑️", key=f"del_{row['id']}"):
+                    if delete_item(row['id'], user_id):
+                        st.toast(f"Item eliminado")
+                        st.rerun()
             
             with cols[1]:
                 if st.button("🔍", key=f"search_{row['id']}"):
