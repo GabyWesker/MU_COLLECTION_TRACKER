@@ -647,8 +647,8 @@ if st.session_state.ver_modo == "Tabla":
         st.session_state.selected_for_market = set()
     
     if not df_display.empty:
-        header_cols = ["🗑️", "🔍", "✅", "Set", "Parte", "K", "Luck 🍀", "Enc", "LIFE", "SD", "DD", "DSR", "REF", "HP", "ZEN"]
-        col_widths = [0.4, 0.5, 0.6, 1.5, 0.8, 0.4, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
+        header_cols = ["🗑️Delete", "🔍Search", "✅Obtain", "Set", "Parte", "Kund", "Enc", "LIFE", "🍀Luck", "SD", "DD", "DSR", "REF", "HP", "ZEN"]
+        col_widths = [0.4, 0.5, 0.6, 1.2, 0.6, 0.4, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
         headers = st.columns(col_widths)
         
         for i, h in enumerate(headers):
@@ -656,7 +656,7 @@ if st.session_state.ver_modo == "Tabla":
                 st.caption(f"<b>{header_cols[i]}</b>", unsafe_allow_html=True)
         
         for idx, row in df_display.iterrows():
-            cols = st.columns([0.4, 0.5, 0.6, 1.5, 0.8, 0.4, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4])
+            cols = st.columns([0.4, 0.5, 0.6, 1.2, 0.6, 0.4, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4])
             
             with cols[0]:
                 if st.button("🗑️", key=f"del_{row['id']}"):
@@ -689,14 +689,6 @@ if st.session_state.ver_modo == "Tabla":
                         df_display.at[idx, 'kundun'] = new_k
             
             with cols[6]:
-                luck_key = f"luck_{row['id']}"
-                luck_val = st.checkbox("", value=bool(row['luck']), key=luck_key)
-                current_luck = int(row['luck']) if row['luck'] else 0
-                new_luck = 1 if luck_val else 0
-                if new_luck != current_luck:
-                    df_display.at[idx, 'luck'] = new_luck
-            
-            with cols[7]:
                 enc_val = row['nivel_bs'] or 0
                 with st.expander(f"+{enc_val}"):
                     enc_key = f"enc_{row['id']}"
@@ -704,13 +696,21 @@ if st.session_state.ver_modo == "Tabla":
                     if new_enc != enc_val:
                         df_display.at[idx, 'nivel_bs'] = new_enc
             
-            with cols[8]:
+            with cols[7]:
                 life_val = row['add_lif'] or 0
                 with st.expander(f"+{life_val}"):
                     life_key = f"life_{row['id']}"
                     new_life = st.number_input("Life", value=int(life_val), min_value=0, max_value=28, key=life_key)
                     if new_life != life_val:
                         df_display.at[idx, 'add_lif'] = new_life
+            
+            with cols[8]:
+                luck_key = f"luck_{row['id']}"
+                luck_val = st.checkbox("", value=bool(row['luck']), key=luck_key)
+                current_luck = int(row['luck']) if row['luck'] else 0
+                new_luck = 1 if luck_val else 0
+                if new_luck != current_luck:
+                    df_display.at[idx, 'luck'] = new_luck
             
             with cols[9]:
                 sd_key = f"sd_{row['id']}"
