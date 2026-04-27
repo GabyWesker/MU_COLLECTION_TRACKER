@@ -11,6 +11,42 @@ NEON_CONN = st.secrets["NEON_CONN"]
 MU_API_URL = "https://mudream-api.crusoft.dev/api/game/market/items"
 MU_API_TOKEN = st.secrets["MU_API_TOKEN"] if "MU_API_TOKEN" in st.secrets else "am9obnktYm90YXJkby1haQ=="
 
+JEWEL_NAMES = ["Jewel of Life", "Jewel of Bless", "Jewel of Soul", "Jewel of Chaos", "Jewel of Creation"]
+
+def get_jewel_prices():
+    try:
+        headers = {"Authorization": f"Bearer {MU_API_TOKEN}"}
+        jewel_prices = {}
+        
+        for jewel in JEWEL_NAMES:
+            min_price = None
+            for offset in [0]:
+                params = {"query": jewel, "limit": 120, "offset": offset}
+                response = requests.get(MU_API_URL, headers=headers, params=params, timeout=10)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    items = data.get("items", [])
+                    
+                    if not items:
+                        break
+                    
+                    for item in items:
+                        prices = item.get("prices", [])
+                        for p in prices:
+                            if p.get("currency", "").lower() == "dream coins":
+                                price_val = int(p.get("amount", 0))
+                                if min_price is None or price_val < min_price:
+                                    min_price = price_val
+            
+            jewel_prices[jewel] = min_price
+        
+        return jewel_prices
+    
+    except Exception as e:
+        st.error(f"Error consultando jewels: {e}")
+        return {jewel: None for jewel in JEWEL_NAMES}
+
 def search_market(item_name, luck=None, excellent_options=None, ancient=False):
     try:
         headers = {"Authorization": f"Bearer {MU_API_TOKEN}"}
@@ -167,9 +203,9 @@ def save_data(edited_df, user_id):
                 UPDATE sets SET kundun=%s, obtenido=%s, luck=%s, nivel_bs=%s, add_lif=%s, 
                 opt_sd=%s, opt_dd=%s, opt_dsr=%s, opt_ref=%s, opt_hp=%s, opt_zen=%s
                 WHERE id=%s AND user_id=%s
-            """, (row['kundun'], row['obtenido'], row['luck'], row['nivel_bs'], row['add_lif'], 
-                  row['opt_sd'], row['opt_dd'], row['opt_dsr'], row['opt_ref'], 
-                  row['opt_hp'], row['opt_zen'], row['id'], user_id))
+            """, (int(row['kundun']), bool(row['obtenido']), bool(row['luck']), int(row['nivel_bs']), int(row['add_lif']), 
+                  bool(row['opt_sd']), bool(row['opt_dd']), bool(row['opt_dsr']), bool(row['opt_ref']), 
+                  bool(row['opt_hp']), bool(row['opt_zen']), row['id'], user_id))
         conn.commit()
         cursor.close()
         conn.close()
@@ -205,6 +241,19 @@ def delete_item(item_id, user_id):
         return True
     except Exception as e:
         st.error(f"Error al eliminar: {e}")
+        return False
+
+def toggle_obtenido(item_id, new_value):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE sets SET obtenido=%s WHERE id=%s", (bool(new_value), item_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Error al actualizar: {e}")
         return False
 
 def export_data(user_id):
@@ -283,35 +332,29 @@ def load_saved_user(username):
         pass
     return ""
 
-def load_remember_me(username):
+def load_remember_me():
     try:
-        filename = f"remember_{username}.txt"
+        filename = os.path.join(os.path.dirname(__file__), "saved_user.txt")
         if os.path.exists(filename):
             with open(filename, "r") as f:
-                return f.read().strip() == "1"
+                return f.read().strip()
     except:
         pass
-    return False
+    return ""
 
-def save_saved_user(username, remember):
+def save_remember_me(username):
     try:
-        filename = f"save_{username}.txt"
+        filename = os.path.join(os.path.dirname(__file__), "saved_user.txt")
         with open(filename, "w") as f:
             f.write(username)
-        remember_file = f"remember_{username}.txt"
-        with open(remember_file, "w") as f:
-            f.write("1" if remember else "0")
     except:
         pass
 
-def clear_saved_user(username):
+def clear_saved_user():
     try:
-        filename = f"save_{username}.txt"
+        filename = os.path.join(os.path.dirname(__file__), "saved_user.txt")
         if os.path.exists(filename):
             os.remove(filename)
-        remember_file = f"remember_{username}.txt"
-        if os.path.exists(remember_file):
-            os.remove(remember_file)
     except:
         pass
 
@@ -332,59 +375,76 @@ if 'filtro_set' not in st.session_state:
 
 if not st.session_state.logged_in:
     tab_login, tab_register = st.tabs(["🔐 Iniciar Sesión", "📝 Registrarse"])
+    col_left, col_center, col_right = st.columns([1, 2, 1])
     
     with tab_login:
-        st.header("🛡️ MU Collection Tracker")
-        username = st.text_input("Usuario", placeholder="Tu nombre de usuario", key="login_user")
-        password = st.text_input("Contraseña", type="password", key="login_pass")
-        
-        saved_remember = load_remember_me(username) if username else False
-        login_remember = st.checkbox("Recordarme", key="chk_remember", value=saved_remember)
-        
-        if st.button("Entrar", use_container_width=True, key="btn_login"):
-            users = get_users_for_auth()
-            if username in users:
-                if verify_password(password, users[username]['password']):
-                    conn = get_connection()
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT id FROM usuarios WHERE username = %s", (username,))
-                    user_id = cursor.fetchone()[0]
-                    cursor.close()
-                    conn.close()
-                    
-                    if login_remember:
-                        save_saved_user(username, True)
-                    else:
-                        clear_saved_user(username)
-                    
-                    st.session_state.user_id = user_id
-                    st.session_state.logged_in = True
-                    st.session_state.username = username
-                    st.rerun()
-                else:
-                    st.error("Contraseña incorrecta")
+        with col_center:
+            logo_path = os.path.join(os.path.dirname(__file__), "assets", "logo.png")
+            if os.path.exists(logo_path):
+                st.image(logo_path, width=120)
             else:
-                st.error("Usuario no encontrado")
+                st.markdown("<h1 style='text-align: center; font-size: 48px;'>🛡️</h1>", unsafe_allow_html=True)
+            
+            st.header("MU Collection Tracker")
+            
+            saved_user = load_remember_me() if 'load_remember_me' in dir() else None
+            default_user = saved_user if saved_user else ""
+            
+            with st.form("login_form", clear_on_submit=False):
+                username = st.text_input("Usuario", placeholder="Tu nombre de usuario", key="login_user", value=default_user)
+                password = st.text_input("Contraseña", type="password", key="login_pass")
+                login_remember = st.checkbox("Recordarme", key="chk_remember")
+                
+                col_submit = st.columns([1])
+                submitted = st.form_submit_button("Entrar", use_container_width=True, type="primary")
+                
+                if submitted:
+                    users = get_users_for_auth()
+                    if username in users:
+                        if verify_password(password, users[username]['password']):
+                            conn = get_connection()
+                            cursor = conn.cursor()
+                            cursor.execute("SELECT id FROM usuarios WHERE username = %s", (username,))
+                            user_id = cursor.fetchone()[0]
+                            cursor.close()
+                            conn.close()
+                            
+                            if login_remember:
+                                save_remember_me(username)
+                            
+                            st.session_state.user_id = user_id
+                            st.session_state.logged_in = True
+                            st.session_state.username = username
+                            st.rerun()
+                        else:
+                            st.error("Contraseña incorrecta")
+                    else:
+                        st.error("Usuario no encontrado")
     
     with tab_register:
-        st.header("Crear Cuenta")
-        reg_email = st.text_input("Email", placeholder="tu@email.com", key="reg_email")
-        reg_username = st.text_input("Usuario", placeholder="Nombre de usuario", key="reg_user")
-        reg_personaje = st.text_input("Personaje", placeholder="Nombre de tu personaje MU", key="reg_personaje")
-        reg_password = st.text_input("Contraseña", type="password", key="reg_pass")
-        reg_confirm = st.text_input("Confirmar Contraseña", type="password", key="reg_confirm")
-        
-        if st.button("Registrarse", use_container_width=True, key="btn_register"):
-            if reg_password != reg_confirm:
-                st.error("Las contraseñas no coinciden")
-            elif not reg_email or not reg_username or not reg_password:
-                st.error("Completa todos los campos")
-            else:
-                result = register_user(reg_email, reg_username, reg_password, reg_personaje)
-                if result is True:
-                    st.success("¡Cuenta creada! Ya puedes iniciar sesión.")
-                else:
-                    st.error(f"Error: {result}")
+        with col_center:
+            st.header("Crear Cuenta")
+            
+            with st.form("register_form", clear_on_submit=False):
+                reg_email = st.text_input("Email", placeholder="tu@email.com", key="reg_email")
+                reg_username = st.text_input("Usuario", placeholder="Nombre de usuario", key="reg_user")
+                reg_personaje = st.text_input("Personaje", placeholder="Nombre de tu personaje MU", key="reg_personaje")
+                reg_password = st.text_input("Contraseña", type="password", key="reg_pass")
+                reg_confirm = st.text_input("Confirmar Contraseña", type="password", key="reg_confirm")
+                
+                submitted_reg = st.form_submit_button("Registrarse", use_container_width=True, type="primary")
+                
+                if submitted_reg:
+                    if reg_password != reg_confirm:
+                        st.error("Las contraseñas no coinciden")
+                    elif not reg_email or not reg_username or not reg_password:
+                        st.error("Completa todos los campos")
+                    else:
+                        result = register_user(reg_email, reg_username, reg_password, reg_personaje)
+                        if result is True:
+                            st.success("¡Cuenta creada! Ya puedes iniciar sesión.")
+                        else:
+                            st.error(f"Error: {result}")
     st.stop()
 
 user_id = st.session_state.user_id
@@ -499,6 +559,75 @@ with st.sidebar:
                     st.error("Error al guardar")
             else:
                 st.error("Completa Set y Pieza")
+    
+    with st.expander("💎 Calculadora de Jewels", expanded=False):
+        col_update, col_title = st.columns([0.2, 1])
+        with col_update:
+            if st.button("🔍", key="update_jewels"):
+                st.session_state.jewel_prices = get_jewel_prices()
+                st.rerun()
+        with col_title:
+            st.caption("💎 **Calculadora de Jewels**")
+        
+        if 'jewel_prices' not in st.session_state:
+            st.session_state.jewel_prices = {}
+        if 'jewel_cantidades' not in st.session_state:
+            st.session_state.jewel_cantidades = {jewel: 0 for jewel in JEWEL_NAMES}
+        
+        precios = st.session_state.jewel_prices
+        
+        st.markdown("""
+        <style>
+        .jewel-table { width: 100%; font-size: 12px; }
+        .jewel-table th, .jewel-table td { padding: 4px; text-align: left; }
+        .jewel-table th { color: #aaa; }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        header_cols = st.columns([2, 1, 1, 1])
+        with header_cols[0]: st.caption("**Item**")
+        with header_cols[1]: st.caption("**Precio Min**")
+        with header_cols[2]: st.caption("**Cantidad**")
+        with header_cols[3]: st.caption("**Total DC**")
+        
+        total_general = 0
+        for jewel in JEWEL_NAMES:
+            precio = precios.get(jewel)
+            
+            c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
+            with c1:
+                st.caption(jewel.replace("Jewel of ", ""))
+            with c2:
+                if precio:
+                    st.caption(f"💰 {precio:,}")
+                else:
+                    st.caption("❌")
+            with c3:
+                key_qty = f"qty_{jewel.replace(' ', '_')}"
+                qty = st.number_input("Qty", min_value=0, value=st.session_state.jewel_cantidades.get(jewel, 0), key=key_qty, label_visibility="collapsed")
+                st.session_state.jewel_cantidades[jewel] = qty
+            with c4:
+                total_jewel = (precio or 0) * qty
+                total_general += total_jewel
+                st.caption(f"**{total_jewel:,}**")
+        
+        st.divider()
+        tc1, tc2 = st.columns([2, 1])
+        with tc1: st.caption("**Total General:**")
+        with tc2: st.caption(f"**💎 {total_general:,} DC**")
+    
+    sets_completos = []
+    for s in df['nombre_set'].unique():
+        temp_df = df[df['nombre_set'] == s]
+        if len(temp_df) > 0 and temp_df['obtenido'].all():
+            sets_completos.append(s)
+    
+    if sets_completos:
+        with st.expander("🎁 Bonus Activos", expanded=True):
+            for s in sets_completos:
+                desc = df_premios[df_premios['nombre_set'] == s]['bonus_desc'].values
+                txt = desc[0] if len(desc) > 0 else "Bonus Activado"
+                st.success(f"**{s}:** {txt}")
 
 total_items = len(df) if not df.empty else 0
 obtenidos = df['obtenido'].sum() if not df.empty else 0
@@ -597,20 +726,6 @@ def show_market_results(set_name, pieza, luck, opt_dd, opt_dsr, opt_ref, opt_hp,
                         if r['match_reasons']:
                             st.markdown("🎯 Match: " + " | ".join([str(x) for x in r['match_reasons']]))
 
-if st.session_state.ver_modo == "Tabla":
-    sets_completos = []
-    for s in df['nombre_set'].unique():
-        temp_df = df[df['nombre_set'] == s]
-        if len(temp_df) > 0 and temp_df['obtenido'].all():
-            sets_completos.append(s)
-
-    if sets_completos:
-        with st.expander("🎁 BONUS ACTIVOS", expanded=True):
-            cols = st.columns(2)
-            for i, s in enumerate(sets_completos):
-                desc = df_premios[df_premios['nombre_set'] == s]['bonus_desc'].values
-                txt = desc[0] if len(desc) > 0 else "Bonus Activado"
-                cols[i % 2].success(f"**{s}:** {txt}")
 df_display = df.copy()
 df_display['obtenido'] = df_display['obtenido'].astype(int)
 df_display['luck'] = df_display['luck'].astype(int)
@@ -647,44 +762,76 @@ if st.session_state.ver_modo == "Tabla":
         st.session_state.selected_for_market = set()
     
     if not df_display.empty:
-        header_cols = ["🗑️Delete", "🔍Search", "✅Obtain", "Set", "Parte", "Kund", "Enc", "LIFE", "🍀Luck", "SD", "DD", "DSR", "REF", "HP", "ZEN"]
-        col_widths = [0.4, 0.5, 0.6, 1.2, 0.6, 0.4, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
-        headers = st.columns(col_widths)
+        header_cols = ["Delete", "Search", "✅", "Set", "Part", "Tier", "Enchant", "Add", "Luck", "SD", "DD", "DSR", "REF", "HP", "ZEN"]
+        col_widths = [0.5, 0.5, 0.5, 1.2, 0.8, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
         
-        for i, h in enumerate(headers):
-            with h:
-                st.caption(f"<b>{header_cols[i]}</b>", unsafe_allow_html=True)
+        st.markdown('<style>div[data-testid="stVerticalBlock"] > div:has(div.stMarkdown) {position: sticky; top: 0; z-index: 1000; background-color: #0e1117;}</style>', unsafe_allow_html=True)
+        
+        header_container = st.container(border=False)
+        with header_container:
+            headers = st.columns(col_widths, gap="small")
+            
+            for i, h in enumerate(headers):
+                with h:
+                    if i >= 8:
+                        _, center_col, _ = st.columns([1, 2, 1])
+                        with center_col:
+                            st.markdown(f"<h4 style='text-align: center; margin: 0; padding: 0; font-size: 14px; line-height: 1; font-weight: bold;'>{header_cols[i]}</h4>", unsafe_allow_html=True)
+                    else:
+                        if i < 3:
+                            st.markdown(f"<h4 style='text-align: center; margin: 0; font-size: 14px; font-weight: bold;'>{header_cols[i]}</h4>", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"<h4 style='margin: 0; font-size: 14px; font-weight: bold;'>{header_cols[i]}</h4>", unsafe_allow_html=True)
         
         for idx, row in df_display.iterrows():
-            cols = st.columns([0.4, 0.5, 0.6, 1.2, 0.6, 0.4, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4])
+            cols = st.columns(col_widths, gap="small")
             
             with cols[0]:
+                st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
                 if st.button("🗑️", key=f"del_{row['id']}"):
                     if delete_item(row['id'], user_id):
                         st.toast(f"Item eliminado")
                         st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
             
             with cols[1]:
+                st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
                 if st.button("🔍", key=f"search_{row['id']}"):
                     st.session_state[f"show_market_{row['id']}"] = not st.session_state.get(f"show_market_{row['id']}", False)
+                st.markdown('</div>', unsafe_allow_html=True)
             
             with cols[2]:
-                cb_obt_key = f"cb_obt_{row['id']}"
-                new_val = st.checkbox("", value=bool(row['obtenido']), key=cb_obt_key)
-                current_obt = int(row['obtenido']) if row['obtenido'] else 0
-                new_obt = 1 if new_val else 0
-                if new_obt != current_obt:
-                    df_display.at[idx, 'obtenido'] = new_obt
+                st.markdown('''
+                    <style>
+                        div[data-testid="stColumn"]:nth-child(3) label {
+                            justify-content: center !important;
+                            margin-right: 0px !important;
+                            width: 100%;
+                        }
+                    </style>
+                    <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
+                ''', unsafe_allow_html=True)
+                
+                cb_obt_key = f"check_{idx}"
+                is_obtained = bool(row['obtenido'])
+                label = "✅" if is_obtained else "❌"
+                
+                if st.button(label, key=cb_obt_key, help="Clic para cambiar estado"):
+                    new_val = not is_obtained
+                    if toggle_obtenido(row['id'], new_val):
+                        st.rerun()
+                
+                st.markdown('</div>', unsafe_allow_html=True)
             
             with cols[3]:
-                st.write(row['nombre_set'])
+                st.markdown(f"<div style='padding-top: 4px;'><span style='font-size: 15px; font-weight: bold;'>{row['nombre_set']}</span></div>", unsafe_allow_html=True)
             with cols[4]:
-                st.write(row['pieza'])
+                st.markdown(f"<div style='padding-top: 4px;'><span style='font-size: 15px; font-weight: bold;'>{row['pieza']}</span></div>", unsafe_allow_html=True)
             with cols[5]:
                 k_val = row['kundun'] or 1
                 with st.expander(f"K{k_val}"):
                     k_key = f"k_{row['id']}"
-                    new_k = st.number_input("Kundun", value=int(k_val), min_value=1, max_value=5, key=k_key)
+                    new_k = st.number_input("Kundun", value=int(k_val), min_value=1, max_value=5, key=k_key, label_visibility="collapsed")
                     if new_k != k_val:
                         df_display.at[idx, 'kundun'] = new_k
             
@@ -692,7 +839,7 @@ if st.session_state.ver_modo == "Tabla":
                 enc_val = row['nivel_bs'] or 0
                 with st.expander(f"+{enc_val}"):
                     enc_key = f"enc_{row['id']}"
-                    new_enc = st.number_input("Enchant", value=int(enc_val), min_value=0, max_value=15, key=enc_key)
+                    new_enc = st.number_input("Enchant", value=int(enc_val), min_value=0, max_value=15, key=enc_key, label_visibility="collapsed")
                     if new_enc != enc_val:
                         df_display.at[idx, 'nivel_bs'] = new_enc
             
@@ -700,60 +847,74 @@ if st.session_state.ver_modo == "Tabla":
                 life_val = row['add_lif'] or 0
                 with st.expander(f"+{life_val}"):
                     life_key = f"life_{row['id']}"
-                    new_life = st.number_input("Life", value=int(life_val), min_value=0, max_value=28, key=life_key)
+                    new_life = st.number_input("Life", value=int(life_val), min_value=0, max_value=28, key=life_key, label_visibility="collapsed")
                     if new_life != life_val:
                         df_display.at[idx, 'add_lif'] = new_life
             
             with cols[8]:
-                luck_key = f"luck_{row['id']}"
-                luck_val = st.checkbox("", value=bool(row['luck']), key=luck_key)
-                current_luck = int(row['luck']) if row['luck'] else 0
-                new_luck = 1 if luck_val else 0
-                if new_luck != current_luck:
-                    df_display.at[idx, 'luck'] = new_luck
+                _, luck_col, _ = st.columns([1, 1, 1])
+                with luck_col:
+                    luck_key = f"luck_{row['id']}"
+                    luck_val = st.checkbox("", value=bool(row['luck']), key=luck_key, label_visibility="collapsed")
+                    current_luck = int(row['luck']) if row['luck'] else 0
+                    new_luck = 1 if luck_val else 0
+                    if new_luck != current_luck:
+                        df_display.at[idx, 'luck'] = new_luck
             
             with cols[9]:
-                sd_key = f"sd_{row['id']}"
-                sd_val = st.checkbox("", value=bool(row['opt_sd']), key=sd_key)
-                current_sd = int(row['opt_sd']) if row['opt_sd'] else 0
-                new_sd = 1 if sd_val else 0
-                if new_sd != current_sd:
-                    df_display.at[idx, 'opt_sd'] = new_sd
+                _, sd_col, _ = st.columns([1, 1, 1])
+                with sd_col:
+                    sd_key = f"sd_{row['id']}"
+                    sd_val = st.checkbox("", value=bool(row['opt_sd']), key=sd_key, label_visibility="collapsed")
+                    current_sd = int(row['opt_sd']) if row['opt_sd'] else 0
+                    new_sd = 1 if sd_val else 0
+                    if new_sd != current_sd:
+                        df_display.at[idx, 'opt_sd'] = new_sd
             with cols[10]:
-                dd_key = f"dd_{row['id']}"
-                dd_val = st.checkbox("", value=bool(row['opt_dd']), key=dd_key)
-                current_dd = int(row['opt_dd']) if row['opt_dd'] else 0
-                new_dd = 1 if dd_val else 0
-                if new_dd != current_dd:
-                    df_display.at[idx, 'opt_dd'] = new_dd
+                _, dd_col, _ = st.columns([1, 1, 1])
+                with dd_col:
+                    dd_key = f"dd_{row['id']}"
+                    dd_val = st.checkbox("", value=bool(row['opt_dd']), key=dd_key, label_visibility="collapsed")
+                    current_dd = int(row['opt_dd']) if row['opt_dd'] else 0
+                    new_dd = 1 if dd_val else 0
+                    if new_dd != current_dd:
+                        df_display.at[idx, 'opt_dd'] = new_dd
             with cols[11]:
-                dsr_key = f"dsr_{row['id']}"
-                dsr_val = st.checkbox("", value=bool(row['opt_dsr']), key=dsr_key)
-                current_dsr = int(row['opt_dsr']) if row['opt_dsr'] else 0
-                new_dsr = 1 if dsr_val else 0
-                if new_dsr != current_dsr:
-                    df_display.at[idx, 'opt_dsr'] = new_dsr
+                _, dsr_col, _ = st.columns([1, 1, 1])
+                with dsr_col:
+                    dsr_key = f"dsr_{row['id']}"
+                    dsr_val = st.checkbox("", value=bool(row['opt_dsr']), key=dsr_key, label_visibility="collapsed")
+                    current_dsr = int(row['opt_dsr']) if row['opt_dsr'] else 0
+                    new_dsr = 1 if dsr_val else 0
+                    if new_dsr != current_dsr:
+                        df_display.at[idx, 'opt_dsr'] = new_dsr
             with cols[12]:
-                ref_key = f"ref_{row['id']}"
-                ref_val = st.checkbox("", value=bool(row['opt_ref']), key=ref_key)
-                current_ref = int(row['opt_ref']) if row['opt_ref'] else 0
-                new_ref = 1 if ref_val else 0
-                if new_ref != current_ref:
-                    df_display.at[idx, 'opt_ref'] = new_ref
+                _, ref_col, _ = st.columns([1, 1, 1])
+                with ref_col:
+                    ref_key = f"ref_{row['id']}"
+                    ref_val = st.checkbox("", value=bool(row['opt_ref']), key=ref_key, label_visibility="collapsed")
+                    current_ref = int(row['opt_ref']) if row['opt_ref'] else 0
+                    new_ref = 1 if ref_val else 0
+                    if new_ref != current_ref:
+                        df_display.at[idx, 'opt_ref'] = new_ref
             with cols[13]:
-                hp_key = f"hp_{row['id']}"
-                hp_val = st.checkbox("", value=bool(row['opt_hp']), key=hp_key)
-                current_hp = int(row['opt_hp']) if row['opt_hp'] else 0
-                new_hp = 1 if hp_val else 0
-                if new_hp != current_hp:
-                    df_display.at[idx, 'opt_hp'] = new_hp
+                _, hp_col, _ = st.columns([1, 1, 1])
+                with hp_col:
+                    hp_key = f"hp_{row['id']}"
+                    hp_val = st.checkbox("", value=bool(row['opt_hp']), key=hp_key, label_visibility="collapsed")
+                    current_hp = int(row['opt_hp']) if row['opt_hp'] else 0
+                    new_hp = 1 if hp_val else 0
+                    if new_hp != current_hp:
+                        df_display.at[idx, 'opt_hp'] = new_hp
             with cols[14]:
-                zen_key = f"zen_{row['id']}"
-                zen_val = st.checkbox("", value=bool(row['opt_zen']), key=zen_key)
-                current_zen = int(row['opt_zen']) if row['opt_zen'] else 0
-                new_zen = 1 if zen_val else 0
-                if new_zen != current_zen:
-                    df_display.at[idx, 'opt_zen'] = new_zen
+                _, zen_col, _ = st.columns([1, 1, 1])
+                with zen_col:
+                    zen_key = f"zen_{row['id']}"
+                    zen_val = st.checkbox("", value=bool(row['opt_zen']), key=zen_key, label_visibility="collapsed")
+                    current_zen = int(row['opt_zen']) if row['opt_zen'] else 0
+                    new_zen = 1 if zen_val else 0
+                    if new_zen != current_zen:
+                        df_display.at[idx, 'opt_zen'] = new_zen
             
             if st.session_state.get(f"show_market_{row['id']}", False):
                 show_market_results(
