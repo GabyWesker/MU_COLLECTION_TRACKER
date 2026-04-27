@@ -20,24 +20,23 @@ def get_jewel_prices():
         
         for jewel in JEWEL_NAMES:
             min_price = None
-            for offset in [0]:
-                params = {"query": jewel, "limit": 120, "offset": offset}
-                response = requests.get(MU_API_URL, headers=headers, params=params, timeout=10)
+            params = {"query": jewel, "limit": 120}
+            response = requests.get(MU_API_URL, headers=headers, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                items = data.get("items", [])
                 
-                if response.status_code == 200:
-                    data = response.json()
-                    items = data.get("items", [])
-                    
-                    if not items:
-                        break
-                    
-                    for item in items:
-                        prices = item.get("prices", [])
-                        for p in prices:
-                            if p.get("currency", "").lower() == "dream coins":
-                                price_val = int(p.get("amount", 0))
-                                if min_price is None or price_val < min_price:
-                                    min_price = price_val
+                if not items:
+                    break
+                
+                for item in items:
+                    prices = item.get("prices", [])
+                    for p in prices:
+                        if p.get("currency", "").lower() == "dream coins":
+                            price_val = int(p.get("amount", 0))
+                            if min_price is None or price_val < min_price:
+                                min_price = price_val
             
             jewel_prices[jewel] = min_price
         
@@ -322,16 +321,6 @@ def find_image(set_name):
         pass
     return None
 
-def load_saved_user(username):
-    try:
-        filename = f"save_{username}.txt"
-        if os.path.exists(filename):
-            with open(filename, "r") as f:
-                return f.read().strip()
-    except:
-        pass
-    return ""
-
 def load_remember_me():
     try:
         filename = os.path.join(os.path.dirname(__file__), "saved_user.txt")
@@ -350,13 +339,7 @@ def save_remember_me(username):
     except:
         pass
 
-def clear_saved_user():
-    try:
-        filename = os.path.join(os.path.dirname(__file__), "saved_user.txt")
-        if os.path.exists(filename):
-            os.remove(filename)
-    except:
-        pass
+
 
 if 'user_id' not in st.session_state:
     st.session_state.user_id = None
@@ -387,7 +370,7 @@ if not st.session_state.logged_in:
             
             st.header("MU Collection Tracker")
             
-            saved_user = load_remember_me() if 'load_remember_me' in dir() else None
+            saved_user = load_remember_me()
             default_user = saved_user if saved_user else ""
             
             with st.form("login_form", clear_on_submit=False):
@@ -576,13 +559,7 @@ with st.sidebar:
         
         precios = st.session_state.jewel_prices
         
-        st.markdown("""
-        <style>
-        .jewel-table { width: 100%; font-size: 12px; }
-        .jewel-table th, .jewel-table td { padding: 4px; text-align: left; }
-        .jewel-table th { color: #aaa; }
-        </style>
-        """, unsafe_allow_html=True)
+        
         
         header_cols = st.columns([2, 1, 1, 1])
         with header_cols[0]: st.caption("**Item**")
@@ -632,9 +609,6 @@ with st.sidebar:
 total_items = len(df) if not df.empty else 0
 obtenidos = df['obtenido'].sum() if not df.empty else 0
 porcentaje = int((obtenidos / total_items) * 100) if total_items > 0 else 0
-
-filtro_set_opts = ["Todos"] + sorted(df['nombre_set'].unique().tolist()) if not df.empty else []
-show_set_filter = bool(filtro_set_opts)
 
 filtro_set_opts = ["Todos"] + sorted(df['nombre_set'].unique().tolist()) if not df.empty else []
 show_set_filter = bool(filtro_set_opts)
@@ -758,8 +732,7 @@ df_display = df_display.sort_values(['nombre_set', 'kundun', 'pieza'])
 if st.session_state.ver_modo == "Tabla":
     st.subheader("📋 Tabla de Items")
     
-    if 'selected_for_market' not in st.session_state:
-        st.session_state.selected_for_market = set()
+    
     
     if not df_display.empty:
         header_cols = ["Delete", "Search", "Obtain", "Set", "Part", "Tier", "Enchant", "Add", "Luck", "SD", "DD", "DSR", "REF", "HP", "ZEN"]
@@ -923,30 +896,6 @@ if st.session_state.ver_modo == "Tabla":
                     bool(row['opt_dd']), bool(row['opt_dsr']), bool(row['opt_ref']),
                     bool(row['opt_hp']), bool(row['opt_zen']), bool(row['opt_sd'])
                 )
-        
-        st.divider()
-        
-        selected_ids = st.session_state.selected_for_market
-        if selected_ids:
-            col_btn, col_count = st.columns([3, 1])
-            with col_btn:
-                if st.button(f"🔍 Buscar Mercado ({len(selected_ids)} items)", use_container_width=True, key="btn_search_market"):
-                    st.session_state.show_bulk_market = not st.session_state.get('show_bulk_market', False)
-            
-            with col_count:
-                st.write(f"{len(selected_ids)} items")
-            
-            if st.session_state.get('show_bulk_market', False):
-                with st.expander("📦 Resultados del Mercado - Búsqueda Global", expanded=True):
-                    selected_df = df_display[df_display['id'].isin(selected_ids)]
-                    for _, item_row in selected_df.iterrows():
-                        st.markdown(f"---")
-                        show_market_results(
-                            item_row['nombre_set'], item_row['pieza'], 
-                            bool(item_row['luck']), 
-                            bool(item_row['opt_dd']), bool(item_row['opt_dsr']), bool(item_row['opt_ref']),
-                            bool(item_row['opt_hp']), bool(item_row['opt_zen']), bool(item_row['opt_sd'])
-                        )
         
         st.divider()
         
