@@ -762,7 +762,7 @@ if st.session_state.ver_modo == "Tabla":
         st.session_state.selected_for_market = set()
     
     if not df_display.empty:
-        header_cols = ["Delete", "Search", "✅", "Set", "Part", "Tier", "Enchant", "Add", "Luck", "SD", "DD", "DSR", "REF", "HP", "ZEN"]
+        header_cols = ["Delete", "Search", "Obtain", "Set", "Part", "Tier", "Enchant", "Add", "Luck", "SD", "DD", "DSR", "REF", "HP", "ZEN"]
         col_widths = [0.5, 0.5, 0.5, 1.2, 0.8, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
         
         st.markdown('<style>div[data-testid="stVerticalBlock"] > div:has(div.stMarkdown) {position: sticky; top: 0; z-index: 1000; background-color: #0e1117;}</style>', unsafe_allow_html=True)
