@@ -997,8 +997,11 @@ if st.session_state.ver_modo == "Galería":
                     st.caption(bonus_txt)
                     piezas_del_set = df_display[df_display['nombre_set'] == s]
                     for _, p in piezas_del_set.iterrows():
-                        icono = "✅" if p['obtenido'] else "❌"
-                        st.write(f"{icono} {p['pieza']}")
+                        is_obtained = bool(p['obtenido'])
+                        label = "✅" if is_obtained else "❌"
+                        if st.button(f"{label} {p['pieza']}", key=f"gal_piece_{p['id']}"):
+                            if toggle_obtenido(p['id'], not is_obtained):
+                                st.rerun()
                 with c_btn:
                     st.write("")
                     if st.button("🔍", key=f"gal_search_{s}"):
@@ -1036,8 +1039,11 @@ if st.session_state.ver_modo == "Galería":
                         st.caption(bonus_txt)
                         piezas_del_set = df_display[df_display['nombre_set'] == s]
                         for _, p in piezas_del_set.iterrows():
-                            icono = "✅" if p['obtenido'] else "❌"
-                            st.write(f"{icono} {p['pieza']}")
+                            is_obtained = bool(p['obtenido'])
+                            label = "✅" if is_obtained else "❌"
+                            if st.button(f"{label} {p['pieza']}", key=f"gal_piece_{p['id']}"):
+                                if toggle_obtenido(p['id'], not is_obtained):
+                                    st.rerun()
                     with c_btn:
                         st.write("")
                         if st.button("🔍", key=f"gal_search_{s}_{i+1}"):
