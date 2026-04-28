@@ -477,71 +477,75 @@ with st.sidebar:
                 st.rerun()
         st.caption(f"Cuenta: {username_logged}")
     
-    with st.expander("➕ Crear Set Completo"):
-        sets_en_db = sorted(df['nombre_set'].unique().tolist()) if not df.empty else []
-        
-        if not sets_en_db:
-            st.info("No hay sets en tu colección. Agrega items primero.")
-        else:
-            seleccion_set = st.selectbox("Seleccionar Set:", sets_en_db, key="sel_set")
-            k_nuevo = st.number_input("Kundun", min_value=1, max_value=5, value=1, key="input_kundun")
+    with st.expander("➕ Crear Set Completo", expanded=True):
+        with st.container(border=True):
+            sets_en_db = sorted(df['nombre_set'].unique().tolist()) if not df.empty else []
             
-            if st.button("Crear Set", key="btn_crear_set"):
-                if create_set_complete(user_id, seleccion_set, k_nuevo):
-                    st.success(f"Set {seleccion_set} creado!")
-                    st.rerun()
-    
-    with st.expander("➕ Añadir Items"):
-        c1, c2 = st.columns(2)
-        with c1:
-            nombre_set_nuevo = st.text_input("Set", key="add_set")
-        with c2:
-            pieza_nueva = st.selectbox("Pieza", ["Helm", "Armor", "Pants", "Gloves", "Boots"], key="add_pieza")
-        
-        c3, c4, c5 = st.columns(3)
-        with c3:
-            kundun_nivel = st.number_input("Kundun", min_value=1, max_value=5, value=1, key="add_k")
-        with c4:
-            enchant_val = st.number_input("Enchant", min_value=0, max_value=15, value=0, key="add_enchant")
-        with c5:
-            life_val = st.number_input("Life", min_value=0, max_value=28, value=0, key="add_life")
-        
-        luck_nuevo = st.checkbox("Luck", key="add_luck")
-        
-        st.write("Opciones:")
-        o1, o2, o3 = st.columns(3)
-        sd_val = o1.checkbox("SD", key="opt_sd")
-        dd_val = o2.checkbox("DD", key="opt_dd")
-        dsr_val = o3.checkbox("DSR", key="opt_dsr")
-        
-        o4, o5, o6 = st.columns(3)
-        hp_val = o4.checkbox("HP", key="opt_hp")
-        ref_val = o5.checkbox("REF", key="opt_ref")
-        zen_val = o6.checkbox("ZEN", key="opt_zen")
-        
-        if st.button("➕ Añadir", key="btn_add_item"):
-            if nombre_set_nuevo and pieza_nueva:
-                luck_v = 1 if luck_nuevo else 0
-                obt_v = 0
-                sd_v = 1 if sd_val else 0
-                dd_v = 1 if dd_val else 0
-                dsr_v = 1 if dsr_val else 0
-                ref_v = 1 if ref_val else 0
-                hp_v = 1 if hp_val else 0
-                zen_v = 1 if zen_val else 0
-                k_v = int(kundun_nivel)
-                e_v = int(enchant_val)
-                l_v = int(life_val)
-                
-                ok = add_full(user_id, nombre_set_nuevo, pieza_nueva, k_v, luck_v, obt_v, e_v, l_v, sd_v, dd_v, dsr_v, ref_v, hp_v, zen_v)
-                
-                if ok:
-                    st.success(f"¡{pieza_nueva} {nombre_set_nuevo} añadido!")
-                    st.rerun()
-                else:
-                    st.error("Error al guardar")
+            if not sets_en_db:
+                st.info("No hay sets en tu colección. Agrega items primero.")
             else:
-                st.error("Completa Set y Pieza")
+                seleccion_set = st.selectbox("Seleccionar Set:", sets_en_db, key="sel_set")
+                k_nuevo = st.number_input("Kundun", min_value=1, max_value=5, value=1, key="input_kundun")
+                
+                if st.button("Crear Set", key="btn_crear_set"):
+                    if create_set_complete(user_id, seleccion_set, k_nuevo):
+                        st.success(f"Set {seleccion_set} creado!")
+                        st.rerun()
+    
+    with st.expander("➕ Añadir Items", expanded=True):
+        with st.container(border=True):
+            c1, c2 = st.columns(2)
+            with c1:
+                nombre_set_nuevo = st.text_input("Set", key="add_set", placeholder="Ej: Adamantine")
+            with c2:
+                pieza_nueva = st.selectbox("Pieza", ["Helm", "Armor", "Pants", "Gloves", "Boots"], key="add_pieza")
+            
+            c3, c4, c5 = st.columns(3)
+            with c3:
+                kundun_nivel = st.number_input("Kundun", min_value=1, max_value=5, value=1, key="add_k")
+            with c4:
+                enchant_val = st.number_input("Enc", min_value=0, max_value=15, value=0, key="add_enchant")
+            with c5:
+                life_val = st.number_input("Life", min_value=0, max_value=28, value=0, key="add_life")
+            
+            st.divider()
+            
+            st.write("**Opciones:**")
+            o1, o2, o3 = st.columns(3)
+            with o1:
+                luck_nuevo = st.checkbox("Luck", key="add_luck")
+                hp_val = st.checkbox("HP", key="opt_hp")
+            with o2:
+                sd_val = st.checkbox("SD", key="opt_sd")
+                ref_val = st.checkbox("REF", key="opt_ref")
+            with o3:
+                dd_val = st.checkbox("DD", key="opt_dd")
+                zen_val = st.checkbox("ZEN", key="opt_zen")
+                dsr_val = st.checkbox("DSR", key="opt_dsr")
+            
+            if st.button("➕ Añadir", key="btn_add_item", use_container_width=True):
+                if nombre_set_nuevo and pieza_nueva:
+                    luck_v = 1 if luck_nuevo else 0
+                    obt_v = 0
+                    sd_v = 1 if sd_val else 0
+                    dd_v = 1 if dd_val else 0
+                    dsr_v = 1 if dsr_val else 0
+                    ref_v = 1 if ref_val else 0
+                    hp_v = 1 if hp_val else 0
+                    zen_v = 1 if zen_val else 0
+                    k_v = int(kundun_nivel)
+                    e_v = int(enchant_val)
+                    l_v = int(life_val)
+                    
+                    ok = add_full(user_id, nombre_set_nuevo, pieza_nueva, k_v, luck_v, obt_v, e_v, l_v, sd_v, dd_v, dsr_v, ref_v, hp_v, zen_v)
+                    
+                    if ok:
+                        st.success(f"¡{pieza_nueva} {nombre_set_nuevo} añadido!")
+                        st.rerun()
+                    else:
+                        st.error("Error al guardar")
+                else:
+                    st.error("Completa Set y Pieza")
     
     with st.expander("💎 Calculadora de Jewels", expanded=False):
         col_update, col_title = st.columns([0.2, 1])
@@ -559,34 +563,33 @@ with st.sidebar:
         
         precios = st.session_state.jewel_prices
         
-        
-        
-        header_cols = st.columns([2, 1, 1, 1])
-        with header_cols[0]: st.caption("**Item**")
-        with header_cols[1]: st.caption("**Precio Min**")
-        with header_cols[2]: st.caption("**Cantidad**")
-        with header_cols[3]: st.caption("**Total DC**")
+        h_cols = st.columns([1.5, 1, 1, 1])
+        h_cols[0].write("**Item**")
+        h_cols[1].write("**Min Price**")
+        h_cols[2].write("**Q**")
+        h_cols[3].write("**Total**")
         
         total_general = 0
         for jewel in JEWEL_NAMES:
             precio = precios.get(jewel)
+            qty = st.session_state.jewel_cantidades.get(jewel, 0)
+            total_jewel = (precio or 0) * qty
+            total_general += total_jewel
             
-            c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
-            with c1:
-                st.caption(jewel.replace("Jewel of ", ""))
-            with c2:
+            cols = st.columns([1.5, 1, 1, 1])
+            with cols[0]:
+                st.markdown(f"<div style='display: flex; align-items: center; height: 38px;'><b>{jewel.replace('Jewel of ', '')}</b></div>", unsafe_allow_html=True)
+            with cols[1]:
                 if precio:
-                    st.caption(f"💰 {precio:,}")
+                    st.markdown(f"<div style='display: flex; justify-content: center; align-items: center; height: 38px;'>💰 {precio:,}</div>", unsafe_allow_html=True)
                 else:
-                    st.caption("❌")
-            with c3:
+                    st.markdown("<div style='display: flex; justify-content: center; align-items: center; height: 38px;'>❌</div>", unsafe_allow_html=True)
+            with cols[2]:
                 key_qty = f"qty_{jewel.replace(' ', '_')}"
-                qty = st.number_input("Qty", min_value=0, value=st.session_state.jewel_cantidades.get(jewel, 0), key=key_qty, label_visibility="collapsed")
+                qty = st.number_input("", min_value=0, step=1, value=qty, key=key_qty, label_visibility="collapsed")
                 st.session_state.jewel_cantidades[jewel] = qty
-            with c4:
-                total_jewel = (precio or 0) * qty
-                total_general += total_jewel
-                st.caption(f"**{total_jewel:,}**")
+            with cols[3]:
+                st.markdown(f"<div style='display: flex; justify-content: center; align-items: center; height: 38px;'><b>{total_jewel:,}</b></div>", unsafe_allow_html=True)
         
         st.divider()
         tc1, tc2 = st.columns([2, 1])
@@ -797,32 +800,35 @@ if st.session_state.ver_modo == "Tabla":
                 st.markdown('</div>', unsafe_allow_html=True)
             
             with cols[3]:
-                st.markdown(f"<div style='padding-top: 4px;'><span style='font-size: 15px; font-weight: bold;'>{row['nombre_set']}</span></div>", unsafe_allow_html=True)
+                st.markdown(f'''
+                    <div style="display: flex; align-items: center; height: 38px; padding-top: 12px;">
+                        <span style="font-size: 15px; font-weight: bold;">{row['nombre_set']}</span>
+                    </div>
+                ''', unsafe_allow_html=True)
             with cols[4]:
-                st.markdown(f"<div style='padding-top: 4px;'><span style='font-size: 15px; font-weight: bold;'>{row['pieza']}</span></div>", unsafe_allow_html=True)
+                st.markdown(f'''
+                    <div style="display: flex; align-items: center; height: 38px; padding-top: 12px;">
+                        <span style="font-size: 15px; font-weight: bold;">{row['pieza']}</span>
+                    </div>
+                ''', unsafe_allow_html=True)
             with cols[5]:
                 k_val = row['kundun'] or 1
-                with st.expander(f"K{k_val}"):
-                    k_key = f"k_{row['id']}"
-                    new_k = st.number_input("Kundun", value=int(k_val), min_value=1, max_value=5, key=k_key, label_visibility="collapsed")
-                    if new_k != k_val:
-                        df_display.at[idx, 'kundun'] = new_k
+                k_key = f"k_{row['id']}"
+                st.selectbox("", options=["K1", "K2", "K3", "K4", "K5"], index=int(k_val)-1, key=k_key, label_visibility="collapsed")
             
             with cols[6]:
                 enc_val = row['nivel_bs'] or 0
-                with st.expander(f"+{enc_val}"):
-                    enc_key = f"enc_{row['id']}"
-                    new_enc = st.number_input("Enchant", value=int(enc_val), min_value=0, max_value=15, key=enc_key, label_visibility="collapsed")
-                    if new_enc != enc_val:
-                        df_display.at[idx, 'nivel_bs'] = new_enc
+                enc_key = f"enc_{row['id']}"
+                enc_options = [f"+{i}" for i in range(16)]
+                enc_idx = min(int(enc_val), 15)
+                st.selectbox("", options=enc_options, index=enc_idx, key=enc_key, label_visibility="collapsed")
             
             with cols[7]:
                 life_val = row['add_lif'] or 0
-                with st.expander(f"+{life_val}"):
-                    life_key = f"life_{row['id']}"
-                    new_life = st.number_input("Life", value=int(life_val), min_value=0, max_value=28, key=life_key, label_visibility="collapsed")
-                    if new_life != life_val:
-                        df_display.at[idx, 'add_lif'] = new_life
+                life_key = f"life_{row['id']}"
+                life_options = [f"+{i}" for i in range(29)]
+                life_idx = min(int(life_val), 28)
+                st.selectbox("", options=life_options, index=life_idx, key=life_key, label_visibility="collapsed")
             
             with cols[8]:
                 _, luck_col, _ = st.columns([1, 1, 1])
