@@ -242,6 +242,19 @@ def delete_item(item_id, user_id):
         st.error(f"Error al eliminar: {e}")
         return False
 
+def delete_set_complete(user_id, nombre_set):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM sets WHERE user_id=%s AND nombre_set=%s", (user_id, nombre_set))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Error al eliminar: {e}")
+        return False
+
 def toggle_obtenido(item_id, new_value):
     try:
         conn = get_connection()
@@ -492,11 +505,30 @@ with st.sidebar:
                         st.success(f"Set {seleccion_set} creado!")
                         st.rerun()
     
+    with st.expander("🗑️ Eliminar Set Completo"):
+        with st.container(border=True):
+            sets_en_db = sorted(df['nombre_set'].unique().tolist()) if not df.empty else []
+            
+            if not sets_en_db:
+                st.info("No hay sets en tu colección.")
+            else:
+                seleccion_set_del = st.selectbox("Seleccionar Set:", sets_en_db, key="sel_set_del")
+                
+                if st.button("🗑️ Eliminar Set", key="btn_eliminar_set", type="primary"):
+                    if delete_set_complete(user_id, seleccion_set_del):
+                        st.success(f"Set {seleccion_set_del} eliminado!")
+                        st.rerun()
+    
     with st.expander("➕ Añadir Items", expanded=True):
         with st.container(border=True):
-            c1, c2 = st.columns(2)
+            c1, c2 = st.columns([1.6, 1])
             with c1:
-                nombre_set_nuevo = st.text_input("Set", key="add_set", placeholder="Ej: Adamantine")
+                set_container = st.empty()
+                nombre_set_nuevo = set_container.text_input(
+                    "Set", 
+                    key=f"set_focus_{st.session_state.get('form_iteration', 0)}",
+                    placeholder="Ej: Adamantine"
+                )
             with c2:
                 pieza_nueva = st.selectbox("Pieza", ["Helm", "Armor", "Pants", "Gloves", "Boots"], key="add_pieza")
             
@@ -504,9 +536,9 @@ with st.sidebar:
             with c3:
                 kundun_nivel = st.number_input("Kundun", min_value=1, max_value=5, value=1, key="add_k")
             with c4:
-                enchant_val = st.number_input("Enc", min_value=0, max_value=15, value=0, key="add_enchant")
+                enchant_val = st.number_input("Enc", min_value=0, max_value=11, value=0, key="add_enchant")
             with c5:
-                life_val = st.number_input("Life", min_value=0, max_value=28, value=0, key="add_life")
+                life_val = st.number_input("Life", min_value=0, max_value=7, value=0, key="add_life")
             
             st.divider()
             
@@ -541,6 +573,9 @@ with st.sidebar:
                     
                     if ok:
                         st.success(f"¡{pieza_nueva} {nombre_set_nuevo} añadido!")
+                        if 'form_iteration' not in st.session_state:
+                            st.session_state.form_iteration = 0
+                        st.session_state.form_iteration += 1
                         st.rerun()
                     else:
                         st.error("Error al guardar")
@@ -819,81 +854,38 @@ if st.session_state.ver_modo == "Tabla":
             with cols[6]:
                 enc_val = row['nivel_bs'] or 0
                 enc_key = f"enc_{row['id']}"
-                enc_options = [f"+{i}" for i in range(16)]
-                enc_idx = min(int(enc_val), 15)
+                enc_options = [f"+{i}" for i in range(12)]
+                enc_idx = min(int(enc_val), 11)
                 st.selectbox("", options=enc_options, index=enc_idx, key=enc_key, label_visibility="collapsed")
             
             with cols[7]:
                 life_val = row['add_lif'] or 0
                 life_key = f"life_{row['id']}"
-                life_options = [f"+{i}" for i in range(29)]
-                life_idx = min(int(life_val), 28)
+                life_options = [f"+{i}" for i in range(8)]
+                life_idx = min(int(life_val), 7)
                 st.selectbox("", options=life_options, index=life_idx, key=life_key, label_visibility="collapsed")
             
-            with cols[8]:
-                _, luck_col, _ = st.columns([1, 1, 1])
-                with luck_col:
-                    luck_key = f"luck_{row['id']}"
-                    luck_val = st.checkbox("", value=bool(row['luck']), key=luck_key, label_visibility="collapsed")
-                    current_luck = int(row['luck']) if row['luck'] else 0
-                    new_luck = 1 if luck_val else 0
-                    if new_luck != current_luck:
-                        df_display.at[idx, 'luck'] = new_luck
+            opciones_mu = {
+                'luck': 'LL',
+                'opt_sd': 'SD',
+                'opt_dd': 'DD',
+                'opt_dsr': 'DSR',
+                'opt_ref': 'REF',
+                'opt_hp': 'HP',
+                'opt_zen': 'ZEN'
+            }
             
-            with cols[9]:
-                _, sd_col, _ = st.columns([1, 1, 1])
-                with sd_col:
-                    sd_key = f"sd_{row['id']}"
-                    sd_val = st.checkbox("", value=bool(row['opt_sd']), key=sd_key, label_visibility="collapsed")
-                    current_sd = int(row['opt_sd']) if row['opt_sd'] else 0
-                    new_sd = 1 if sd_val else 0
-                    if new_sd != current_sd:
-                        df_display.at[idx, 'opt_sd'] = new_sd
-            with cols[10]:
-                _, dd_col, _ = st.columns([1, 1, 1])
-                with dd_col:
-                    dd_key = f"dd_{row['id']}"
-                    dd_val = st.checkbox("", value=bool(row['opt_dd']), key=dd_key, label_visibility="collapsed")
-                    current_dd = int(row['opt_dd']) if row['opt_dd'] else 0
-                    new_dd = 1 if dd_val else 0
-                    if new_dd != current_dd:
-                        df_display.at[idx, 'opt_dd'] = new_dd
-            with cols[11]:
-                _, dsr_col, _ = st.columns([1, 1, 1])
-                with dsr_col:
-                    dsr_key = f"dsr_{row['id']}"
-                    dsr_val = st.checkbox("", value=bool(row['opt_dsr']), key=dsr_key, label_visibility="collapsed")
-                    current_dsr = int(row['opt_dsr']) if row['opt_dsr'] else 0
-                    new_dsr = 1 if dsr_val else 0
-                    if new_dsr != current_dsr:
-                        df_display.at[idx, 'opt_dsr'] = new_dsr
-            with cols[12]:
-                _, ref_col, _ = st.columns([1, 1, 1])
-                with ref_col:
-                    ref_key = f"ref_{row['id']}"
-                    ref_val = st.checkbox("", value=bool(row['opt_ref']), key=ref_key, label_visibility="collapsed")
-                    current_ref = int(row['opt_ref']) if row['opt_ref'] else 0
-                    new_ref = 1 if ref_val else 0
-                    if new_ref != current_ref:
-                        df_display.at[idx, 'opt_ref'] = new_ref
-            with cols[13]:
-                _, hp_col, _ = st.columns([1, 1, 1])
-                with hp_col:
-                    hp_key = f"hp_{row['id']}"
-                    hp_val = st.checkbox("", value=bool(row['opt_hp']), key=hp_key, label_visibility="collapsed")
-                    current_hp = int(row['opt_hp']) if row['opt_hp'] else 0
-                    new_hp = 1 if hp_val else 0
-                    if new_hp != current_hp:
-                        df_display.at[idx, 'opt_hp'] = new_hp
-            with cols[14]:
-                _, zen_col, _ = st.columns([1, 1, 1])
-                with zen_col:
-                    zen_key = f"zen_{row['id']}"
-                    zen_val = st.checkbox("", value=bool(row['opt_zen']), key=zen_key, label_visibility="collapsed")
-                    current_zen = int(row['opt_zen']) if row['opt_zen'] else 0
-                    new_zen = 1 if zen_val else 0
-                    if new_zen != current_zen:
-                        df_display.at[idx, 'opt_zen'] = new_zen
+            for i, (col_key, label_corto) in enumerate(opciones_mu.items()):
+                with cols[i + 8]:
+                    btn_key = f"opt_{col_key}_{idx}"
+                    is_active = row[col_key]
+                    
+                    label_display = f"**{label_corto}**" if is_active else label_corto
+                    
+                    if st.button(label_display, key=btn_key, use_container_width=True, 
+                                 type="primary" if is_active else "secondary"):
+                        new_val = 0 if is_active else 1
+                        df_display.at[idx, col_key] = new_val
             
             if st.session_state.get(f"show_market_{row['id']}", False):
                 show_market_results(
