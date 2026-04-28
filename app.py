@@ -903,6 +903,11 @@ if st.session_state.ver_modo == "Tabla":
                                  type="primary" if is_active else "secondary"):
                         new_val = 0 if is_active else 1
                         df_display.at[idx, col_key] = new_val
+                        try:
+                            bool_val = bool(new_val)
+                            update_item_field(row['id'], col_key, bool_val)
+                        except Exception as e:
+                            st.error(f"Error: {e}")
                         st.rerun()
             
             if st.session_state.get(f"show_market_{row['id']}", False):
