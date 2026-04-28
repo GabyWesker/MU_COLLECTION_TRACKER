@@ -842,8 +842,7 @@ if st.session_state.ver_modo == "Tabla":
                 
                 if st.button(label, key=cb_obt_key, help="Clic para cambiar estado"):
                     new_val = not is_obtained
-                    if toggle_obtenido(row['id'], new_val):
-                        st.rerun()
+                    df_display.at[idx, 'obtenido'] = new_val
                 
                 st.markdown('</div>', unsafe_allow_html=True)
             
@@ -861,28 +860,27 @@ if st.session_state.ver_modo == "Tabla":
                 ''', unsafe_allow_html=True)
             with cols[5]:
                 k_val = row['kundun'] or 1
-                k_key = f"k_{row['id']}"
-                new_k = st.selectbox("", options=["K1", "K2", "K3", "K4", "K5"], index=int(k_val)-1, key=k_key, label_visibility="collapsed")
-                if new_k != k_val:
-                    update_item_field(row['id'], 'kundun', int(new_k[1]))
+                with st.expander(f"K{k_val}"):
+                    k_key = f"k_{row['id']}"
+                    new_k = st.number_input("Kundun", value=int(k_val), min_value=1, max_value=5, key=k_key, label_visibility="collapsed")
+                    if new_k != k_val:
+                        df_display.at[idx, 'kundun'] = new_k
             
             with cols[6]:
                 enc_val = row['nivel_bs'] or 0
-                enc_key = f"enc_{row['id']}"
-                enc_options = [f"+{i}" for i in range(12)]
-                enc_idx = min(int(enc_val), 11)
-                new_enc = st.selectbox("", options=enc_options, index=enc_idx, key=enc_key, label_visibility="collapsed")
-                if new_enc != enc_val:
-                    update_item_field(row['id'], 'nivel_bs', int(new_enc[1:]))
+                with st.expander(f"+{enc_val}"):
+                    enc_key = f"enc_{row['id']}"
+                    new_enc = st.number_input("Enchant", value=int(enc_val), min_value=0, max_value=11, key=enc_key, label_visibility="collapsed")
+                    if new_enc != enc_val:
+                        df_display.at[idx, 'nivel_bs'] = new_enc
             
             with cols[7]:
                 life_val = row['add_lif'] or 0
-                life_key = f"life_{row['id']}"
-                life_options = [f"+{i}" for i in range(8)]
-                life_idx = min(int(life_val), 7)
-                new_life = st.selectbox("", options=life_options, index=life_idx, key=life_key, label_visibility="collapsed")
-                if new_life != life_val:
-                    update_item_field(row['id'], 'add_lif', int(new_life[1:]))
+                with st.expander(f"+{life_val}"):
+                    life_key = f"life_{row['id']}"
+                    new_life = st.number_input("Life", value=int(life_val), min_value=0, max_value=7, key=life_key, label_visibility="collapsed")
+                    if new_life != life_val:
+                        df_display.at[idx, 'add_lif'] = new_life
             
             opciones_mu = {
                 'luck': 'LL',
@@ -904,7 +902,7 @@ if st.session_state.ver_modo == "Tabla":
                     if st.button(label_display, key=btn_key, use_container_width=True, 
                                  type="primary" if is_active else "secondary"):
                         new_val = 0 if is_active else 1
-                        update_item_field(row['id'], col_key, new_val)
+                        df_display.at[idx, col_key] = new_val
                         st.rerun()
             
             if st.session_state.get(f"show_market_{row['id']}", False):
