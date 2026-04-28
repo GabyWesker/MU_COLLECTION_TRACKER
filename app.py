@@ -268,6 +268,19 @@ def toggle_obtenido(item_id, new_value):
         st.error(f"Error al actualizar: {e}")
         return False
 
+def update_item_field(item_id, field, value):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(f"UPDATE sets SET {field}=%s WHERE id=%s", (value, item_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Error al actualizar: {e}")
+        return False
+
 def export_data(user_id):
     try:
         conn = get_connection()
@@ -849,21 +862,27 @@ if st.session_state.ver_modo == "Tabla":
             with cols[5]:
                 k_val = row['kundun'] or 1
                 k_key = f"k_{row['id']}"
-                st.selectbox("", options=["K1", "K2", "K3", "K4", "K5"], index=int(k_val)-1, key=k_key, label_visibility="collapsed")
+                new_k = st.selectbox("", options=["K1", "K2", "K3", "K4", "K5"], index=int(k_val)-1, key=k_key, label_visibility="collapsed")
+                if new_k != k_val:
+                    update_item_field(row['id'], 'kundun', int(new_k[1]))
             
             with cols[6]:
                 enc_val = row['nivel_bs'] or 0
                 enc_key = f"enc_{row['id']}"
                 enc_options = [f"+{i}" for i in range(12)]
                 enc_idx = min(int(enc_val), 11)
-                st.selectbox("", options=enc_options, index=enc_idx, key=enc_key, label_visibility="collapsed")
+                new_enc = st.selectbox("", options=enc_options, index=enc_idx, key=enc_key, label_visibility="collapsed")
+                if new_enc != enc_val:
+                    update_item_field(row['id'], 'nivel_bs', int(new_enc[1:]))
             
             with cols[7]:
                 life_val = row['add_lif'] or 0
                 life_key = f"life_{row['id']}"
                 life_options = [f"+{i}" for i in range(8)]
                 life_idx = min(int(life_val), 7)
-                st.selectbox("", options=life_options, index=life_idx, key=life_key, label_visibility="collapsed")
+                new_life = st.selectbox("", options=life_options, index=life_idx, key=life_key, label_visibility="collapsed")
+                if new_life != life_val:
+                    update_item_field(row['id'], 'add_lif', int(new_life[1:]))
             
             opciones_mu = {
                 'luck': 'LL',
@@ -885,7 +904,8 @@ if st.session_state.ver_modo == "Tabla":
                     if st.button(label_display, key=btn_key, use_container_width=True, 
                                  type="primary" if is_active else "secondary"):
                         new_val = 0 if is_active else 1
-                        df_display.at[idx, col_key] = new_val
+                        update_item_field(row['id'], col_key, new_val)
+                        st.rerun()
             
             if st.session_state.get(f"show_market_{row['id']}", False):
                 show_market_results(
