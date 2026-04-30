@@ -841,7 +841,7 @@ if st.session_state.ver_modo == "Tabla":
                 label = "✅" if is_obtained else "❌"
                 
                 if st.button(label, key=cb_obt_key, help="Clic para cambiar estado"):
-                    new_val = not is_obtained
+                    new_val = 1 if not is_obtained else 0
                     df_display.at[idx, 'obtenido'] = new_val
                 
                 st.markdown('</div>', unsafe_allow_html=True)
