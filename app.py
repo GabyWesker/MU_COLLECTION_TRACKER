@@ -843,6 +843,11 @@ if st.session_state.ver_modo == "Tabla":
                 if st.button(label, key=cb_obt_key, help="Clic para cambiar estado"):
                     new_val = 1 if not is_obtained else 0
                     df_display.at[idx, 'obtenido'] = new_val
+                    try:
+                        update_item_field(row['id'], 'obtenido', bool(new_val))
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                    st.rerun()
                 
                 st.markdown('</div>', unsafe_allow_html=True)
             
