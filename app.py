@@ -771,7 +771,9 @@ if filtro_k != "Todos":
 if st.session_state.filtro_set != "Todos":
     df_display = df_display[df_display['nombre_set'] == st.session_state.filtro_set]
 
-df_display = df_display.sort_values(['nombre_set', 'kundun', 'pieza'])
+prioridad_piezas = {"Helm": 1, "Armor": 2, "Pants": 3, "Gloves": 4, "Boots": 5}
+df_display['orden_sort'] = df_display['pieza'].map(prioridad_piezas)
+df_display = df_display.sort_values(['nombre_set', 'kundun', 'orden_sort']).drop('orden_sort', axis=1)
 
 if st.session_state.ver_modo == "Tabla":
     st.subheader("📋 Tabla de Items")
