@@ -1,9 +1,13 @@
 import streamlit as st
+import extra_streamlit_components as stx
 import psycopg2
 import pandas as pd
 import bcrypt
 import os
+import datetime
 import requests
+
+cookie_manager = stx.CookieManager()
 
 st.set_page_config(page_title="MU Collection Tracker", layout="wide", page_icon="🛡️")
 
@@ -348,22 +352,11 @@ def find_image(set_name):
     return None
 
 def load_remember_me():
-    try:
-        filename = os.path.join(os.path.dirname(__file__), "saved_user.txt")
-        if os.path.exists(filename):
-            with open(filename, "r") as f:
-                return f.read().strip()
-    except:
-        pass
-    return ""
+    return cookie_manager.get(cookie="remembered_user")
 
 def save_remember_me(username):
-    try:
-        filename = os.path.join(os.path.dirname(__file__), "saved_user.txt")
-        with open(filename, "w") as f:
-            f.write(username)
-    except:
-        pass
+    expires = datetime.datetime.now() + datetime.timedelta(days=30)
+    cookie_manager.set("remembered_user", username, expires_at=expires)
 
 
 
