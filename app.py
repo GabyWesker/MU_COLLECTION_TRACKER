@@ -197,6 +197,15 @@ def load_data(user_id):
         st.error(f"Error al cargar datos: {e}")
         return pd.DataFrame(), pd.DataFrame()
 
+def get_all_sets():
+    try:
+        conn = get_connection()
+        df = pd.read_sql("SELECT DISTINCT nombre_set FROM sets ORDER BY nombre_set", conn)
+        conn.close()
+        return df['nombre_set'].tolist()
+    except:
+        return []
+
 def save_data(edited_df, user_id):
     try:
         conn = get_connection()
@@ -498,10 +507,10 @@ with st.sidebar:
     
     with st.expander("➕ Crear Set Completo", expanded=True):
         with st.container(border=True):
-            sets_en_db = sorted(df['nombre_set'].unique().tolist()) if not df.empty else []
+            sets_en_db = get_all_sets()
             
             if not sets_en_db:
-                st.info("No hay sets en tu colección. Agrega items primero.")
+                st.info("No hay sets disponibles.")
             else:
                 seleccion_set = st.selectbox("Seleccionar Set:", sets_en_db, key="sel_set")
                 k_nuevo = st.number_input("Kundun", min_value=1, max_value=5, value=1, key="input_kundun")
@@ -513,10 +522,10 @@ with st.sidebar:
     
     with st.expander("🗑️ Eliminar Set Completo"):
         with st.container(border=True):
-            sets_en_db = sorted(df['nombre_set'].unique().tolist()) if not df.empty else []
+            sets_en_db = get_all_sets()
             
             if not sets_en_db:
-                st.info("No hay sets en tu colección.")
+                st.info("No hay sets disponibles.")
             else:
                 seleccion_set_del = st.selectbox("Seleccionar Set:", sets_en_db, key="sel_set_del")
                 
@@ -614,8 +623,6 @@ with st.sidebar:
         for jewel in JEWEL_NAMES:
             precio = precios.get(jewel)
             qty = st.session_state.jewel_cantidades.get(jewel, 0)
-            total_jewel = (precio or 0) * qty
-            total_general += total_jewel
             
             cols = st.columns([1.5, 1, 1, 1])
             with cols[0]:
@@ -630,6 +637,8 @@ with st.sidebar:
                 qty = st.number_input("", min_value=0, step=1, value=qty, key=key_qty, label_visibility="collapsed")
                 st.session_state.jewel_cantidades[jewel] = qty
             with cols[3]:
+                total_jewel = (precio or 0) * qty
+                total_general += total_jewel
                 st.markdown(f"<div style='display: flex; justify-content: center; align-items: center; height: 38px;'><b>{total_jewel:,}</b></div>", unsafe_allow_html=True)
         
         st.divider()
