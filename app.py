@@ -498,12 +498,13 @@ with st.sidebar:
     st.divider()
     
     with st.expander("👤 Mi Perfil"):
-        nuevo_personaje = st.text_input("Personaje MU", value=personaje, key="edit_personaje")
-        if st.button("Guardar Personaje", key="btn_guardar_personaje"):
-            if update_personaje(user_id, nuevo_personaje):
-                st.success("¡Guardado!")
-                st.rerun()
-        st.caption(f"Cuenta: {username_logged}")
+        with st.container(border=True):
+            nuevo_personaje = st.text_input("Personaje MU", value=personaje, key="edit_personaje")
+            if st.button("Guardar Personaje", key="btn_guardar_personaje"):
+                if update_personaje(user_id, nuevo_personaje):
+                    st.success("¡Guardado!")
+                    st.rerun()
+            st.caption(f"Cuenta: {username_logged}")
     
     with st.expander("➕ Crear Set Completo", expanded=True):
         with st.container(border=True):
@@ -598,53 +599,54 @@ with st.sidebar:
                     st.error("Completa Set y Pieza")
     
     with st.expander("💎 Calculadora de Jewels", expanded=False):
-        col_update, col_title = st.columns([0.2, 1])
-        with col_update:
-            if st.button("🔍", key="update_jewels"):
-                st.session_state.jewel_prices = get_jewel_prices()
-                st.rerun()
-        with col_title:
-            st.caption("💎 **Calculadora de Jewels**")
-        
-        if 'jewel_prices' not in st.session_state:
-            st.session_state.jewel_prices = {}
-        if 'jewel_cantidades' not in st.session_state:
-            st.session_state.jewel_cantidades = {jewel: 0 for jewel in JEWEL_NAMES}
-        
-        precios = st.session_state.jewel_prices
-        
-        h_cols = st.columns([1.5, 1, 1, 1])
-        h_cols[0].write("**Item**")
-        h_cols[1].write("**Min Price**")
-        h_cols[2].write("**Q**")
-        h_cols[3].write("**Total**")
-        
-        total_general = 0
-        for jewel in JEWEL_NAMES:
-            precio = precios.get(jewel)
-            qty = st.session_state.jewel_cantidades.get(jewel, 0)
+        with st.container(border=True):
+            col_update, col_title = st.columns([0.2, 1])
+            with col_update:
+                if st.button("🔍", key="update_jewels"):
+                    st.session_state.jewel_prices = get_jewel_prices()
+                    st.rerun()
+            with col_title:
+                st.caption("💎 **Calculadora de Jewels**")
             
-            cols = st.columns([1.5, 1, 1, 1])
-            with cols[0]:
-                st.markdown(f"<div style='display: flex; align-items: center; height: 38px;'><b>{jewel.replace('Jewel of ', '')}</b></div>", unsafe_allow_html=True)
-            with cols[1]:
-                if precio:
-                    st.markdown(f"<div style='display: flex; justify-content: center; align-items: center; height: 38px;'>💰 {precio:,}</div>", unsafe_allow_html=True)
-                else:
-                    st.markdown("<div style='display: flex; justify-content: center; align-items: center; height: 38px;'>❌</div>", unsafe_allow_html=True)
-            with cols[2]:
-                key_qty = f"qty_{jewel.replace(' ', '_')}"
-                qty = st.number_input("", min_value=0, step=1, value=qty, key=key_qty, label_visibility="collapsed")
-                st.session_state.jewel_cantidades[jewel] = qty
-            with cols[3]:
-                total_jewel = (precio or 0) * qty
-                total_general += total_jewel
-                st.markdown(f"<div style='display: flex; justify-content: center; align-items: center; height: 38px;'><b>{total_jewel:,}</b></div>", unsafe_allow_html=True)
-        
-        st.divider()
-        tc1, tc2 = st.columns([2, 1])
-        with tc1: st.caption("**Total General:**")
-        with tc2: st.caption(f"**💎 {total_general:,} DC**")
+            if 'jewel_prices' not in st.session_state:
+                st.session_state.jewel_prices = {}
+            if 'jewel_cantidades' not in st.session_state:
+                st.session_state.jewel_cantidades = {jewel: 0 for jewel in JEWEL_NAMES}
+            
+            precios = st.session_state.jewel_prices
+            
+            h_cols = st.columns([1.5, 1, 1, 1])
+            h_cols[0].write("**Item**")
+            h_cols[1].write("**Min Price**")
+            h_cols[2].write("**Q**")
+            h_cols[3].write("**Total**")
+            
+            total_general = 0
+            for jewel in JEWEL_NAMES:
+                precio = precios.get(jewel)
+                qty = st.session_state.jewel_cantidades.get(jewel, 0)
+                
+                cols = st.columns([1.5, 1, 1, 1])
+                with cols[0]:
+                    st.markdown(f"<div style='display: flex; align-items: center; height: 38px;'><b>{jewel.replace('Jewel of ', '')}</b></div>", unsafe_allow_html=True)
+                with cols[1]:
+                    if precio:
+                        st.markdown(f"<div style='display: flex; justify-content: center; align-items: center; height: 38px;'>💰 {precio:,}</div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown("<div style='display: flex; justify-content: center; align-items: center; height: 38px;'>❌</div>", unsafe_allow_html=True)
+                with cols[2]:
+                    key_qty = f"qty_{jewel.replace(' ', '_')}"
+                    qty = st.number_input("", min_value=0, step=1, value=qty, key=key_qty, label_visibility="collapsed")
+                    st.session_state.jewel_cantidades[jewel] = qty
+                with cols[3]:
+                    total_jewel = (precio or 0) * qty
+                    total_general += total_jewel
+                    st.markdown(f"<div style='display: flex; justify-content: center; align-items: center; height: 38px;'><b>{total_jewel:,}</b></div>", unsafe_allow_html=True)
+            
+            st.divider()
+            tc1, tc2 = st.columns([2, 1])
+            with tc1: st.caption("**Total General:**")
+            with tc2: st.caption(f"**💎 {total_general:,} DC**")
     
     sets_completos = []
     for s in df['nombre_set'].unique():
@@ -654,10 +656,11 @@ with st.sidebar:
     
     if sets_completos:
         with st.expander("🎁 Bonus Activos", expanded=True):
-            for s in sets_completos:
-                desc = df_premios[df_premios['nombre_set'] == s]['bonus_desc'].values
-                txt = desc[0] if len(desc) > 0 else "Bonus Activado"
-                st.success(f"**{s}:** {txt}")
+            with st.container(border=True):
+                for s in sets_completos:
+                    desc = df_premios[df_premios['nombre_set'] == s]['bonus_desc'].values
+                    txt = desc[0] if len(desc) > 0 else "Bonus Activado"
+                    st.success(f"**{s}:** {txt}")
 
 total_items = len(df) if not df.empty else 0
 obtenidos = df['obtenido'].sum() if not df.empty else 0
